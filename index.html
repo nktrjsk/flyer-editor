@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Samostuduj — editor letáku</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,600;1,9..144,300&family=Crimson+Pro:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.6/marked.min.js"></script>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <header class="toolbar">
+    <span class="toolbar-title">Samostuduj · editor letáku</span>
+    <div class="toolbar-actions">
+      <button onclick="downloadHTML()">⬇ Stáhnout HTML</button>
+      <button onclick="window.print()">⎙ Tisknout / PDF</button>
+    </div>
+  </header>
+
+  <div class="editor-layout">
+
+    <div class="source-pane">
+
+      <div class="meta-section">
+        <div class="meta-field">
+          <label>Název</label>
+          <input id="meta-title" type="text" value="Znakový jazyk">
+        </div>
+        <div class="meta-field">
+          <label>Organizace</label>
+          <input id="meta-org" type="text" value="Samostuduj">
+        </div>
+        <div class="meta-field">
+          <label>Rok</label>
+          <input id="meta-year" type="text" value="">
+        </div>
+        <div class="meta-field">
+          <label>Písmo (pt)</label>
+          <input id="meta-fontsize" type="number" value="9.5" min="6" max="16" step="0.5">
+        </div>
+        <div class="meta-field" style="grid-column: 1 / -1">
+          <label>Web / odkaz</label>
+          <input id="meta-web" type="text" placeholder="samostuduj.cz">
+        </div>
+        <div class="meta-field" style="grid-column: 1 / -1">
+          <label>Logo</label>
+          <div class="logo-input-row">
+            <label class="logo-btn" for="meta-logo">Vybrat soubor</label>
+            <input id="meta-logo" type="file" accept="image/*" style="display:none">
+            <span id="logo-filename" class="logo-filename">—</span>
+            <button class="logo-clear" id="logo-clear" onclick="clearLogo()" style="display:none">✕</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="pane-label">Obsah (Markdown) — stránky odděl pomocí ---</div>
+
+      <textarea id="md-source" spellcheck="true">
+## Co to je?
+
+Znakový jazyk (někdy „znakovka") určitě není ~~„znaková řeč"~~ — „řeč" je
+zvukový projev, zatímco znakový jazyk je vizuálně‑motorický: používá ruce,
+mimiku, pohyby těla a prostor kolem nás.
+
+Znakový jazyk je **plnohodnotný jazyk** — má vlastní slovní zásobu i gramatiku
+a dá se jím vyjádřit všechno: otázky, přání, vtipy, emoce i abstraktní témata.
+Není to pantomima ani „mávaní rukama" — význam vzniká podle ustálených znaků
+a pravidel.
+
+## Kdy se hodí?
+
+V situacích, kdy mluvení nejde nebo by bylo nepříjemné:
+
+- v hlučném prostředí (koncert, bar, dílna)
+- tam, kde je potřeba být potichu (knihovna, zkouška, někdo telefonuje nebo spí)
+- přes sklo, ve vodě, z větší vzdálenosti
+- při dočasně omezené možnosti mluvit — po zákroku, s rouškou, při ztrátě hlasu
+- při komunikaci s neslyšícími
+
+*Pojmy jako „hluchoněmý" se dnes obvykle nepoužívají — většina neslyšících
+není němá, jen používá jiný komunikační kanál.*
+
+---
+
+## Pro koho je znakový jazyk?
+
+Často se vnímá jako „jazyk neslyšících" — a ano, pro mnoho Neslyšících
+(s velkým N jako kulturní a jazyková komunita) je to přirozený mateřský jazyk.
+Zároveň ale může být užitečný úplně každému, kdo se chce domluvit i bez hlasu.
+
+## Nemusíš být plynný/á, aby to dávalo smysl
+
+Už pár základních znaků a ochota se domluvit umí výrazně usnadnit běžné situace:
+
+> pozdrav · poděkování · prosba · „nerozumím" · „zopakuj" · „počkej" ·
+> „pojď" · „promiň" · „pomoc" · „kde?" · „kolik?"
+
+## Co znakový jazyk obsahuje?
+
+- **Znaky** — ustálená „slova" tvořená tvarem ruky, místem, pohybem a mimikou
+- **Prstová abeceda** — hláskování; používá se hlavně pro jména, názvy,
+  zkratky nebo slova bez běžného znaku
+
+## Znakový jazyk není univerzální
+
+Různé země mají různé znakové jazyky. V České republice se používá **český
+znakový jazyk** — není to „čeština do rukou", ale jazyk s vlastním způsobem
+vyjadřování.
+      </textarea>
+
+    </div>
+
+    <div class="preview-pane" id="preview"></div>
+
+  </div>
+
+  <!-- Logo stored as base64 so it survives download/reopen of standalone files -->
+  <img id="logo-store" src="" alt="" style="display:none">
+
+  <script src="editor.js"></script>
+
+</body>
+</html>

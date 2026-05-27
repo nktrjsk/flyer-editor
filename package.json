@@ -1,0 +1,12 @@
+{
+  "name": "flyer-editor",
+  "version": "1.0.0",
+  "description": "Browser-based A5 flyer editor — Markdown in, PDF out",
+  "private": true,
+  "scripts": {
+    "dev": "browser-sync start --server --port 8080 --files '*.html,*.css,*.js' --open"
+  },
+  "devDependencies": {
+    "browser-sync": "^3.0.4"
+  }
+}
