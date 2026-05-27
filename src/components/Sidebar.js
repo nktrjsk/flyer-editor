@@ -1,4 +1,0 @@
-import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
-export default function Sidebar({ concepts, activeId, onSelect, onNew, onDelete }) {
-    return (_jsxs("div", { className: "sidebar", children: [_jsxs("div", { className: "sidebar-header", children: [_jsx("span", { className: "sidebar-label", children: "Koncepty" }), _jsx("button", { className: "sidebar-new-btn", onClick: onNew, title: "Nov\u00FD koncept", children: "+" })] }), _jsx("div", { className: "sidebar-list", children: concepts.map(c => (_jsxs("div", { className: `sidebar-item${c.id === activeId ? ' active' : ''}`, onClick: () => onSelect(c.id), children: [_jsx("span", { className: "sidebar-item-name", children: c.title || '(bez názvu)' }), _jsx("button", { className: "sidebar-delete-btn", title: "Smazat", onClick: e => { e.stopPropagation(); onDelete(c.id); }, children: "\u2715" })] }, c.id))) })] }));
-}
