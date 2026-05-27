@@ -545,3 +545,79 @@ body {
   border-top: 1px solid #2e3234;
 }
 
+.modal-hint {
+  font-size: 9pt;
+  color: #666;
+  line-height: 1.5;
+  margin: 0;
+}
+
+/* Word grid for the BIP39 mnemonic */
+.mnemonic-words {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px 10px;
+  background: #141618;
+  border: 1px solid #2e3234;
+  border-radius: 4px;
+  padding: 12px 14px;
+}
+
+.mnemonic-word {
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 10px;
+  color: #ccc9c2;
+  white-space: nowrap;
+}
+
+.mnemonic-word-index {
+  color: #444;
+  margin-right: 4px;
+  font-size: 9px;
+  user-select: none;
+}
+
+/* Copy mnemonic button */
+.mnemonic-copy-btn {
+  background: none;
+  border: 1px solid #3a3d3f;
+  border-radius: 3px;
+  color: #888;
+  font-family: var(--font-body);
+  font-size: 8.5pt;
+  padding: 4px 10px;
+  cursor: pointer;
+  align-self: flex-start;
+  transition: border-color 0.15s, color 0.15s;
+}
+.mnemonic-copy-btn:hover { border-color: var(--accent); color: #ccc; }
+
+/* Restore textarea */
+.mnemonic-input {
+  background: #232629;
+  border: 1px solid #3a3d3f;
+  border-radius: 4px;
+  color: #ccc9c2;
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 11px;
+  padding: 8px 10px;
+  resize: vertical;
+  width: 100%;
+  box-sizing: border-box;
+  outline: none;
+  display: block;
+  margin-bottom: 8px;
+}
+.mnemonic-input:focus { border-color: var(--accent); }
+
+.mnemonic-error {
+  font-size: 9pt;
+  color: #f88;
+  margin: 0 0 8px;
+}
+
+.modal-restore-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
