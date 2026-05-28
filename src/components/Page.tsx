@@ -32,7 +32,7 @@ export default function Page({ section, meta, isFirst, pageIndex, total }: PageP
       <div className="page" style={{ '--base': `${meta.fontSize}pt` } as React.CSSProperties}>
         {isFirst && (
           <div className="page-title-block">
-            <div>
+            <div className="page-title-area">
               <div className="page-title">{esc(meta.title)}</div>
               <div className="page-meta">
                 {esc(meta.org)}{meta.year ? ` · ${esc(meta.year)}` : ''}

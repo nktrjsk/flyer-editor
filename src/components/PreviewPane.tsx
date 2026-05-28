@@ -9,7 +9,11 @@ interface PreviewPaneProps {
 
 function fitTitles(pane: HTMLElement) {
   pane.querySelectorAll<HTMLElement>('.page-title').forEach(el => {
-    const max = 34, min = 14
+    const max = 34, min = 20
+
+    // overflow:hidden lets scrollWidth report natural text width
+    // while offsetWidth reflects the constrained container width
+    el.style.overflow = 'hidden'
     el.style.whiteSpace = 'nowrap'
     el.style.fontSize = `${max}pt`
 
@@ -19,9 +23,13 @@ function fitTitles(pane: HTMLElement) {
       el.style.fontSize = `${size}pt`
     }
 
+    // Still doesn't fit at minimum size → wrap instead
     if (el.scrollWidth > el.offsetWidth) {
       el.style.whiteSpace = 'normal'
     }
+
+    // Restore so descenders aren't clipped in the final render
+    el.style.overflow = 'visible'
   })
 }
 
@@ -29,7 +37,6 @@ export default function PreviewPane({ meta, markdown }: PreviewPaneProps) {
   const paneRef = useRef<HTMLDivElement>(null)
   const fontsReady = useRef(false)
 
-  // Gate first fitTitles on fonts being loaded
   useEffect(() => {
     document.fonts.ready.then(() => {
       fontsReady.current = true
@@ -38,9 +45,7 @@ export default function PreviewPane({ meta, markdown }: PreviewPaneProps) {
   }, [])
 
   useLayoutEffect(() => {
-    if (fontsReady.current && paneRef.current) {
-      fitTitles(paneRef.current)
-    }
+    if (fontsReady.current && paneRef.current) fitTitles(paneRef.current)
   })
 
   const sections = markdown.split(/\n\s*---\s*\n/)

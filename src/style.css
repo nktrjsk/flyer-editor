@@ -212,6 +212,11 @@ body { font-family: var(--font-body); }
   flex-shrink: 0;
 }
 
+.page-title-area {
+  flex: 1;
+  min-width: 0;
+}
+
 .page-title {
   font-family: var(--font-display);
   font-weight: 600;
@@ -219,7 +224,6 @@ body { font-family: var(--font-body); }
   font-size: 34pt; /* JS may override this */
   line-height: 1.05;
   color: var(--accent);
-  white-space: nowrap;
   overflow: visible;
   margin-bottom: 1.5mm;
 }
