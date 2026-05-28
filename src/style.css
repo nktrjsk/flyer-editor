@@ -481,6 +481,87 @@ body { font-family: var(--font-body); }
 .sidebar-item:hover .sidebar-delete-btn { color: #555; }
 .sidebar-delete-btn:hover { color: #e05! important; }
 
+/* ─── History panel ───────────────────────────── */
+.history-panel {
+  border-top: 1px solid #2e3234;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.history-toggle {
+  width: 100%;
+  background: none;
+  border: none;
+  padding: 8px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.history-chevron {
+  font-size: 9px;
+  color: #555;
+}
+
+.history-list {
+  overflow-y: auto;
+  max-height: 160px;
+  padding: 2px 0 6px;
+}
+
+.history-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 12px;
+}
+
+.history-item-label {
+  flex: 1;
+  font-size: 10px;
+  color: #555;
+  font-family: ui-monospace, Consolas, monospace;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.history-item--manual .history-item-label { color: #6aada4; }
+
+.history-item-time {
+  font-size: 9px;
+  color: #444;
+  white-space: nowrap;
+  font-family: ui-monospace, Consolas, monospace;
+  flex-shrink: 0;
+}
+
+.history-restore-btn {
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 2px;
+  color: transparent;
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 3px;
+  flex-shrink: 0;
+  transition: color 0.15s, border-color 0.15s;
+}
+.history-item:hover .history-restore-btn { color: #666; border-color: #3a3d3f; }
+.history-restore-btn:hover { color: #ccc !important; border-color: var(--accent) !important; }
+
+.history-overflow {
+  font-size: 9px;
+  color: #444;
+  font-family: ui-monospace, Consolas, monospace;
+  padding: 2px 12px 0;
+  font-style: italic;
+}
+
 /* ─── Editor layout (3-col) ───────────────────── */
 .editor-layout {
   grid-template-columns: 220px 400px 1fr;

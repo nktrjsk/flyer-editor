@@ -58,6 +58,7 @@ export default function EditorLayout() {
         onSelect={id => handleSelect(id as ConceptId)}
         onNew={createConcept}
         onDelete={id => handleDelete(id as ConceptId)}
+        onRestore={_id => { /* implemented in task 4 */ }}
       />
       <SourcePane
         meta={meta}
