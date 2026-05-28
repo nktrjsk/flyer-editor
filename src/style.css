@@ -334,10 +334,13 @@ body { font-family: var(--font-body); }
 
 @media print {
   .toolbar,
+  .sidebar,
   .source-pane,
   .page-label { display: none !important; }
 
   html, body { height: auto; overflow: visible; display: block; }
+
+  #root { height: auto; display: block; }
 
   .editor-layout { display: block; height: auto; }
 
