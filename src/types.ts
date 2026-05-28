@@ -1,5 +1,16 @@
 export type Palette = 'color' | 'bw'
 
+/** Fields restored from a snapshot (logo is excluded — snapshots don't store it). */
+export interface SnapshotContent {
+  title: string
+  org: string
+  year: string
+  web: string
+  fontSize: number
+  palette: string | null
+  markdown: string
+}
+
 export interface ConceptMeta {
   title: string
   org: string

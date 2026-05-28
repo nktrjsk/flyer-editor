@@ -1,5 +1,5 @@
 import HistoryPanel from './HistoryPanel'
-import type { ConceptSnapshotId } from '../db/schema'
+import type { SnapshotContent } from '../types'
 
 interface SidebarProps {
   concepts: Array<{ id: string; title: string }>
@@ -7,7 +7,7 @@ interface SidebarProps {
   onSelect: (id: string) => void
   onNew: () => void
   onDelete: (id: string) => void
-  onRestore: (snapshotId: ConceptSnapshotId) => void
+  onRestore: (content: SnapshotContent) => void
 }
 
 export default function Sidebar({

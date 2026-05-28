@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react'
-import type { ConceptMeta } from '../types'
+import type { ConceptMeta, SnapshotContent, Palette } from '../types'
 import { useConcepts } from '../hooks/useConcepts'
 import { useActiveConcept } from '../hooks/useActiveConcept'
 import { useAutoSave } from '../hooks/useAutoSave'
@@ -9,7 +9,11 @@ import SourcePane from './SourcePane'
 import PreviewPane from './PreviewPane'
 import type { ConceptId } from '../db/schema'
 
-export default function EditorLayout() {
+interface EditorLayoutProps {
+  onSnapshotReady?: (saveFn: (label: string | null) => void) => void
+}
+
+export default function EditorLayout({ onSnapshotReady }: EditorLayoutProps) {
   const concepts = useConcepts()
   const {
     activeId,
@@ -32,8 +36,13 @@ export default function EditorLayout() {
   }
 
   useAutoSave(activeId, meta, markdown)
-  const { saveAutoSnapshot, saveManualSnapshot: _saveManualSnapshot } = useSnapshots(activeId, meta, markdown)
-  // _saveManualSnapshot is wired to the toolbar in a follow-up task
+  const { saveAutoSnapshot, saveManualSnapshot } = useSnapshots(activeId, meta, markdown)
+
+  // Expose saveManualSnapshot to the parent (App → Toolbar) via callback ref
+  const onSnapshotReadyRef = useRef(onSnapshotReady)
+  onSnapshotReadyRef.current = onSnapshotReady
+  // Call once when the function becomes available; App stores it in a ref
+  if (onSnapshotReadyRef.current) onSnapshotReadyRef.current(saveManualSnapshot)
 
   function handleMetaChange(patch: Partial<ConceptMeta>) {
     setMeta(prev => ({ ...prev, ...patch }))
@@ -50,6 +59,24 @@ export default function EditorLayout() {
     deleteConcept(id)
   }
 
+  function handleRestore(content: SnapshotContent) {
+    // Save current state first so the restore itself is undoable
+    saveManualSnapshot(null)
+
+    const restoredMeta: ConceptMeta = {
+      ...meta,                                          // keep current logo
+      title:    content.title,
+      org:      content.org,
+      year:     content.year,
+      web:      content.web,
+      fontSize: content.fontSize,
+      palette:  (content.palette as Palette | null) ?? 'color',
+    }
+    setMeta(restoredMeta)
+    setMarkdown(content.markdown)
+    // useAutoSave picks up the state change and persists within 500 ms
+  }
+
   return (
     <div className="editor-layout">
       <Sidebar
@@ -58,7 +85,7 @@ export default function EditorLayout() {
         onSelect={id => handleSelect(id as ConceptId)}
         onNew={createConcept}
         onDelete={id => handleDelete(id as ConceptId)}
-        onRestore={_id => { /* implemented in task 4 */ }}
+        onRestore={handleRestore}
       />
       <SourcePane
         meta={meta}

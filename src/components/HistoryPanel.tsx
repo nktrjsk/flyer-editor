@@ -4,8 +4,8 @@ import {
   snapshotsByConceptQuery,
   noSnapshotQuery,
   type ConceptId,
-  type ConceptSnapshotId,
 } from '../db/schema'
+import type { SnapshotContent } from '../types'
 
 const MAX_VISIBLE = 20
 
@@ -26,7 +26,7 @@ function formatRelativeTime(isoString: string): string {
 
 interface HistoryPanelProps {
   activeId: ConceptId | null
-  onRestore: (snapshotId: ConceptSnapshotId) => void
+  onRestore: (content: SnapshotContent) => void
 }
 
 export default function HistoryPanel({ activeId, onRestore }: HistoryPanelProps) {
@@ -67,7 +67,15 @@ export default function HistoryPanel({ activeId, onRestore }: HistoryPanelProps)
                 <button
                   className="history-restore-btn"
                   title="Obnovit tuto verzi"
-                  onClick={() => onRestore(snap.id as ConceptSnapshotId)}
+                  onClick={() => onRestore({
+                    title:    String(snap.title),
+                    org:      String(snap.org),
+                    year:     String(snap.year),
+                    web:      String(snap.web),
+                    fontSize: Number(snap.fontSize),
+                    palette:  snap.palette ? String(snap.palette) : null,
+                    markdown: String(snap.markdown),
+                  })}
                 >
                   ↩
                 </button>
