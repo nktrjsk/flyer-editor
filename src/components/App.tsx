@@ -1,4 +1,4 @@
-import { Suspense, useState } from 'react'
+import { Suspense, useRef, useState } from 'react'
 import { EvoluProvider } from '@evolu/react'
 import { evolu } from '../db/schema'
 import EditorLayout from './EditorLayout'
@@ -8,12 +8,27 @@ import SettingsModal from './SettingsModal'
 export default function App() {
   const [settingsOpen, setSettingsOpen] = useState(false)
 
+  // Ref populated by EditorLayout via onSnapshotReady — avoids prop-drilling
+  // the snapshot function through the component tree.
+  const saveManualSnapshotRef = useRef<((label: string | null) => void) | null>(null)
+
+  function handleSaveSnapshot() {
+    const label = window.prompt('Název verze (volitelné) — Enter pro uložení bez názvu, Escape pro zrušení:')
+    if (label === null) return // user cancelled
+    saveManualSnapshotRef.current?.(label.trim() || null)
+  }
+
   return (
     <EvoluProvider value={evolu}>
-      <Toolbar onOpenSettings={() => setSettingsOpen(true)} />
+      <Toolbar
+        onOpenSettings={() => setSettingsOpen(true)}
+        onSaveSnapshot={handleSaveSnapshot}
+      />
       {/* EditorLayout suspends while Evolu loads — show minimal shell */}
       <Suspense fallback={<div className="editor-layout" />}>
-        <EditorLayout />
+        <EditorLayout
+          onSnapshotReady={fn => { saveManualSnapshotRef.current = fn }}
+        />
       </Suspense>
       {settingsOpen && (
         <SettingsModal onClose={() => setSettingsOpen(false)} />
