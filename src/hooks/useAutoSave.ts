@@ -25,6 +25,7 @@ export function useAutoSave(
         web:      meta.web,
         fontSize: meta.fontSize,
         logo:     meta.logo || null,
+        palette:  meta.palette,
         markdown,
       })
     }, 500)

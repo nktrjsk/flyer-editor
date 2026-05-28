@@ -1,6 +1,6 @@
 import { useQuery } from '@evolu/react'
 import { conceptByIdQuery, noConceptQuery, useEvolu, type ConceptId } from '../db/schema'
-import { DEFAULT_META, DEFAULT_MARKDOWN, type ConceptMeta } from '../types'
+import { DEFAULT_META, DEFAULT_MARKDOWN, type ConceptMeta, type Palette } from '../types'
 import { useMemo, useSyncExternalStore } from 'react'
 import { sqliteTrue } from '@evolu/common'
 
@@ -61,6 +61,7 @@ export function useActiveConcept(
     web:      activeRow?.web      ?? DEFAULT_META.web,
     fontSize: activeRow?.fontSize ?? DEFAULT_META.fontSize,
     logo:     activeRow?.logo     ?? '',
+    palette:  (activeRow?.palette as Palette | null) ?? 'color',
   }
   const markdown = activeRow?.markdown ?? DEFAULT_MARKDOWN
 
@@ -79,6 +80,7 @@ export function useActiveConcept(
       web:      '',
       fontSize: 9.5,
       logo:     null,
+      palette:  'color',
       markdown: '',
     })
     if (result.ok) {

@@ -1,3 +1,5 @@
+export type Palette = 'color' | 'bw'
+
 export interface ConceptMeta {
   title: string
   org: string
@@ -5,6 +7,7 @@ export interface ConceptMeta {
   web: string
   fontSize: number
   logo: string // base64 data URL or empty string
+  palette: Palette
 }
 
 export const DEFAULT_META: ConceptMeta = {
@@ -14,6 +17,7 @@ export const DEFAULT_META: ConceptMeta = {
   web: '',
   fontSize: 9.5,
   logo: '',
+  palette: 'color',
 }
 
 export const DEFAULT_MARKDOWN = `## Co to je?

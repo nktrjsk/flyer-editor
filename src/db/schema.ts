@@ -26,6 +26,7 @@ const Schema = {
     web: EvoluString,
     fontSize: FiniteNumber,
     logo: nullOr(EvoluString), // base64 data URL or null
+    palette: nullOr(EvoluString), // 'color' | 'bw' — null treated as 'color'
     markdown: EvoluString,
   },
 }

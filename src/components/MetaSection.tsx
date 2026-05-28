@@ -61,6 +61,19 @@ export default function MetaSection({ meta, onChange }: MetaSectionProps) {
         />
       </div>
       <div className="meta-field" style={{ gridColumn: '1 / -1' }}>
+        <label>Barevnost</label>
+        <div className="palette-toggle">
+          <button
+            className={`palette-btn${meta.palette === 'color' ? ' active' : ''}`}
+            onClick={() => onChange({ palette: 'color' })}
+          >🎨 Barevný</button>
+          <button
+            className={`palette-btn${meta.palette === 'bw' ? ' active' : ''}`}
+            onClick={() => onChange({ palette: 'bw' })}
+          >⬛ Černobílý</button>
+        </div>
+      </div>
+      <div className="meta-field" style={{ gridColumn: '1 / -1' }}>
         <label>Logo</label>
         <div className="logo-input-row">
           <label className="logo-btn" htmlFor="meta-logo">Vybrat soubor</label>

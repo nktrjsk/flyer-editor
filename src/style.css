@@ -135,6 +135,30 @@ body { font-family: var(--font-body); }
 }
 .logo-clear:hover { color: #ccc; }
 
+/* Palette toggle */
+.palette-toggle {
+  display: flex;
+  border: 1px solid #3a3d3f;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.palette-btn {
+  flex: 1;
+  background: none;
+  border: none;
+  border-right: 1px solid #3a3d3f;
+  color: #555;
+  font-family: ui-monospace, 'Cascadia Code', Consolas, monospace;
+  font-size: 11px;
+  padding: 4px 8px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.palette-btn:last-child { border-right: none; }
+.palette-btn:hover:not(.active) { background: #232629; color: #aaa; }
+.palette-btn.active { background: #3a3d3f; color: #ccc9c2; }
+
 /* Markdown area */
 .pane-label {
   padding: 7px 16px;
@@ -191,6 +215,14 @@ body { font-family: var(--font-body); }
   color: var(--text);
   flex-shrink: 0;
   --base: 9.5pt; /* overridden per-page by JS */
+}
+
+/* ─── B&W palette override ────────────────────── */
+.page[data-palette="bw"] {
+  --accent:       #1a1a1a;
+  --accent-light: #efefef;
+  --muted:        #4a4a4a;
+  --border:       #aaa;
 }
 
 /* ─── Title block ─────────────────────────────── */

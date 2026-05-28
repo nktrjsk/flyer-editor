@@ -29,7 +29,7 @@ export default function Page({ section, meta, isFirst, pageIndex, total }: PageP
   return (
     <>
       <div className="page-label">{labelText}</div>
-      <div className="page" style={{ '--base': `${meta.fontSize}pt` } as React.CSSProperties}>
+      <div className="page" data-palette={meta.palette} style={{ '--base': `${meta.fontSize}pt` } as React.CSSProperties}>
         {isFirst && (
           <div className="page-title-block">
             <div className="page-title-area">
