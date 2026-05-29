@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import { useEvolu, type ConceptId } from '../db/schema'
+import { useEvolu, type ConceptId, type ConceptLogoId } from '../db/schema'
 import type { ConceptMeta } from '../types'
 
 /**
@@ -36,7 +36,10 @@ export function useAutoSave(
         year:     meta.year,
         web:      meta.web,
         fontSize: meta.fontSize,
-        logo:     meta.logo || null,
+        // Once a logoId is set, clear the legacy logo field to free storage.
+        // If no logoId, preserve whatever is in the legacy field.
+        logo:     meta.logoId ? null : (meta.logo || null),
+        logoId:   meta.logoId as ConceptLogoId | null,
         palette:  meta.palette,
         markdown,
       })

@@ -18,27 +18,34 @@ const ConceptSnapshotId = id('ConceptSnapshot')
 type ConceptSnapshotId = typeof ConceptSnapshotId.Type
 export type { ConceptSnapshotId }
 
+const ConceptLogoId = id('ConceptLogo')
+type ConceptLogoId = typeof ConceptLogoId.Type
+export type { ConceptLogoId }
+
 // ── Schema ────────────────────────────────────────────────
-// Logo is nullable: null = no logo, string = base64 data URL.
-// Note: Evolu mutation size limit is 640 KB — keep logos small.
-// Snapshots deliberately exclude logo to avoid hitting the size limit.
+// Logos are stored in a dedicated conceptLogo table and referenced by ID so
+// that many snapshots of the same concept can share one logo row without
+// duplicating the base64 payload.
+// The legacy `concept.logo` field is kept for backward compatibility; new
+// uploads write to conceptLogo + set logoId, and display code prefers logoId.
 const Schema = {
   concept: {
     id: ConceptId,
-    title: EvoluString,      // display name, empty string = untitled
+    title: EvoluString,
     org: EvoluString,
     year: EvoluString,
     web: EvoluString,
     fontSize: FiniteNumber,
-    logo: nullOr(EvoluString), // base64 data URL or null
-    palette: nullOr(EvoluString), // 'color' | 'bw' — null treated as 'color'
+    logo: nullOr(EvoluString),       // legacy: base64 data URL or null
+    logoId: nullOr(ConceptLogoId),   // preferred: reference to conceptLogo row
+    palette: nullOr(EvoluString),    // 'color' | 'bw' — null treated as 'color'
     markdown: EvoluString,
   },
   conceptSnapshot: {
     id: ConceptSnapshotId,
-    conceptId: ConceptId,        // owning concept
-    label: nullOr(EvoluString),  // optional user label; null = auto-snapshot
-    source: nullOr(EvoluString), // 'auto' | null (null = manual)
+    conceptId: ConceptId,
+    label: nullOr(EvoluString),
+    source: nullOr(EvoluString),
     title: EvoluString,
     org: EvoluString,
     year: EvoluString,
@@ -46,6 +53,11 @@ const Schema = {
     fontSize: FiniteNumber,
     palette: nullOr(EvoluString),
     markdown: EvoluString,
+    logoId: nullOr(ConceptLogoId),   // null on old snapshots → restore keeps current logo
+  },
+  conceptLogo: {
+    id: ConceptLogoId,
+    data: EvoluString,               // base64 data URL; never deleted (snapshots reference it)
   },
 }
 
@@ -65,14 +77,16 @@ export const allConceptsQuery = evolu.createQuery(db =>
     .orderBy('createdAt', 'desc'),
 )
 
-/** Full concept row by id */
+/** Full concept row + joined logo data */
 export const conceptByIdQuery = (conceptId: ConceptId) =>
   evolu.createQuery(db =>
     db
       .selectFrom('concept')
-      .selectAll()
-      .where('id', '=', conceptId)
-      .where('isDeleted', 'is not', sqliteTrue),
+      .leftJoin('conceptLogo', 'conceptLogo.id', 'concept.logoId')
+      .selectAll('concept')
+      .select('conceptLogo.data as logoData')
+      .where('concept.id', '=', conceptId)
+      .where('concept.isDeleted', 'is not', sqliteTrue),
   )
 
 /**
@@ -83,29 +97,41 @@ export const conceptByIdQuery = (conceptId: ConceptId) =>
 export const noConceptQuery = evolu.createQuery(db =>
   db
     .selectFrom('concept')
-    .selectAll()
-    .where('id', '=', '' as ConceptId)
+    .leftJoin('conceptLogo', 'conceptLogo.id', 'concept.logoId')
+    .selectAll('concept')
+    .select('conceptLogo.data as logoData')
+    .where('concept.id', '=', '' as ConceptId)
     .limit(0),
 )
 
-/** Snapshots for a concept, newest first */
+/** Snapshots for a concept with joined logo data, newest first */
 export const snapshotsByConceptQuery = (conceptId: ConceptId) =>
   evolu.createQuery(db =>
     db
       .selectFrom('conceptSnapshot')
-      .select(['id', 'conceptId', 'label', 'source', 'title', 'org', 'year',
-               'web', 'fontSize', 'palette', 'markdown', 'createdAt'])
-      .where('conceptId', '=', conceptId)
-      .where('isDeleted', 'is not', sqliteTrue)
-      .orderBy('createdAt', 'desc'),
+      .leftJoin('conceptLogo', 'conceptLogo.id', 'conceptSnapshot.logoId')
+      .select(['conceptSnapshot.id', 'conceptSnapshot.conceptId', 'conceptSnapshot.label',
+               'conceptSnapshot.source', 'conceptSnapshot.title', 'conceptSnapshot.org',
+               'conceptSnapshot.year', 'conceptSnapshot.web', 'conceptSnapshot.fontSize',
+               'conceptSnapshot.palette', 'conceptSnapshot.markdown', 'conceptSnapshot.createdAt',
+               'conceptSnapshot.logoId'])
+      .select('conceptLogo.data as logoData')
+      .where('conceptSnapshot.conceptId', '=', conceptId)
+      .where('conceptSnapshot.isDeleted', 'is not', sqliteTrue)
+      .orderBy('conceptSnapshot.createdAt', 'desc'),
   )
 
 /** No-op snapshot query — placeholder when conceptId is null */
 export const noSnapshotQuery = evolu.createQuery(db =>
   db
     .selectFrom('conceptSnapshot')
-    .select(['id', 'conceptId', 'label', 'source', 'title', 'org', 'year',
-             'web', 'fontSize', 'palette', 'markdown', 'createdAt'])
-    .where('id', '=', '' as ConceptSnapshotId)
+    .leftJoin('conceptLogo', 'conceptLogo.id', 'conceptSnapshot.logoId')
+    .select(['conceptSnapshot.id', 'conceptSnapshot.conceptId', 'conceptSnapshot.label',
+             'conceptSnapshot.source', 'conceptSnapshot.title', 'conceptSnapshot.org',
+             'conceptSnapshot.year', 'conceptSnapshot.web', 'conceptSnapshot.fontSize',
+             'conceptSnapshot.palette', 'conceptSnapshot.markdown', 'conceptSnapshot.createdAt',
+             'conceptSnapshot.logoId'])
+    .select('conceptLogo.data as logoData')
+    .where('conceptSnapshot.id', '=', '' as ConceptSnapshotId)
     .limit(0),
 )

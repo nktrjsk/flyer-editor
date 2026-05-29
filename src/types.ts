@@ -1,6 +1,6 @@
 export type Palette = 'color' | 'bw'
 
-/** Fields restored from a snapshot (logo is excluded — snapshots don't store it). */
+/** Fields restored from a snapshot. logoId=null on old snapshots → restore keeps current logo. */
 export interface SnapshotContent {
   title: string
   org: string
@@ -9,6 +9,8 @@ export interface SnapshotContent {
   fontSize: number
   palette: string | null
   markdown: string
+  logoId: string | null  // ConceptLogoId ref; null on pre-logo-versioning snapshots
+  logo: string           // resolved base64 from join; '' when logoId is null
 }
 
 export interface ConceptMeta {
@@ -17,7 +19,8 @@ export interface ConceptMeta {
   year: string
   web: string
   fontSize: number
-  logo: string // base64 data URL or empty string
+  logo: string           // base64 data URL for display, '' = no logo
+  logoId: string | null  // ConceptLogoId ref; null when using legacy logo or no logo
   palette: Palette
 }
 
@@ -28,6 +31,7 @@ export const DEFAULT_META: ConceptMeta = {
   web: '',
   fontSize: 9.5,
   logo: '',
+  logoId: null,
   palette: 'color',
 }
 

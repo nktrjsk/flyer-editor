@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import { useEvolu, type ConceptId } from '../db/schema'
+import { useEvolu, type ConceptId, type ConceptLogoId } from '../db/schema'
 import type { ConceptMeta } from '../types'
 
 const AUTO_INTERVAL_MS = 5 * 60 * 1000
@@ -67,6 +67,7 @@ export function useSnapshots(
       fontSize: metaRef.current.fontSize,
       palette:  metaRef.current.palette,
       markdown: markdownRef.current,
+      logoId:   metaRef.current.logoId as ConceptLogoId | null,
     })
 
     if (source === 'auto') lastAutoKeyRef.current = key

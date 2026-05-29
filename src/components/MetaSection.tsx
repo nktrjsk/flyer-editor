@@ -3,14 +3,15 @@ import type { ConceptMeta } from '../types'
 interface MetaSectionProps {
   meta: ConceptMeta
   onChange: (patch: Partial<ConceptMeta>) => void
+  onLogoChange: (data: string) => void
 }
 
-export default function MetaSection({ meta, onChange }: MetaSectionProps) {
+export default function MetaSection({ meta, onChange, onLogoChange }: MetaSectionProps) {
   function handleLogo(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
     const reader = new FileReader()
-    reader.onload = ev => onChange({ logo: ev.target?.result as string })
+    reader.onload = ev => onLogoChange(ev.target?.result as string)
     reader.readAsDataURL(file)
   }
 
@@ -80,7 +81,7 @@ export default function MetaSection({ meta, onChange }: MetaSectionProps) {
           <input id="meta-logo" type="file" accept="image/*" style={{ display: 'none' }} onChange={handleLogo} />
           <span className="logo-filename">{meta.logo ? 'logo (načteno)' : '—'}</span>
           {meta.logo && (
-            <button className="logo-clear" onClick={() => onChange({ logo: '' })}>✕</button>
+            <button className="logo-clear" onClick={() => onLogoChange('')}>✕</button>
           )}
         </div>
       </div>

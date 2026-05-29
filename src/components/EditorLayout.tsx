@@ -23,6 +23,7 @@ export default function EditorLayout({ onSnapshotReady }: EditorLayoutProps) {
     selectConcept,
     createConcept,
     deleteConcept,
+    createLogo,
   } = useActiveConcept(concepts)
 
   // Local form state for instant UI response — auto-saved to Evolu
@@ -31,19 +32,23 @@ export default function EditorLayout({ onSnapshotReady }: EditorLayoutProps) {
 
   // Sync local state when the active concept changes.
   //
-  // We use a ref (not usePrevious) to track which concept has been synced.
-  // The guard `activeRow?.id === activeId` ensures we only sync once Evolu
-  // has returned data for the *new* concept — preventing a race where
-  // useQuery still holds stale data from the previous concept and we'd
-  // overwrite local state (and then auto-save) with the wrong content.
-  const lastSyncedIdRef = useRef<ConceptId | null>(null)
-  if (lastSyncedIdRef.current !== activeId && activeRow?.id === activeId) {
-    lastSyncedIdRef.current = activeId
+  // `syncedId` (state, not a ref) tracks which concept's data is currently
+  // reflected in `meta`/`markdown`. Using state — not a ref — is critical:
+  // a ref mutated in the first Strict Mode render invocation persists into
+  // the second, causing isSynced to flip true while meta still holds the
+  // previous concept's content. State is the same in both invocations and
+  // only updates after all setMeta/setMarkdown calls have been applied.
+  //
+  // The guard `activeRow?.id === activeId` prevents syncing from stale Evolu
+  // data returned before the query has caught up to the new concept.
+  const [syncedId, setSyncedId] = useState<ConceptId | null>(null)
+  if (syncedId !== activeId && activeRow?.id === activeId) {
+    setSyncedId(activeId)
     setMeta(savedMeta)
     setMarkdown(savedMarkdown)
   }
 
-  useAutoSave(activeId, meta, markdown, lastSyncedIdRef.current === activeId)
+  useAutoSave(activeId, meta, markdown, syncedId === activeId)
   const { saveAutoSnapshot, saveManualSnapshot } = useSnapshots(activeId, meta, markdown)
 
   // Expose saveManualSnapshot to the parent (App → Toolbar) via callback ref
@@ -54,6 +59,15 @@ export default function EditorLayout({ onSnapshotReady }: EditorLayoutProps) {
 
   function handleMetaChange(patch: Partial<ConceptMeta>) {
     setMeta(prev => ({ ...prev, ...patch }))
+  }
+
+  function handleLogoChange(data: string) {
+    if (!data) {
+      setMeta(prev => ({ ...prev, logo: '', logoId: null }))
+      return
+    }
+    const logoId = createLogo(data)
+    setMeta(prev => ({ ...prev, logo: data, logoId: logoId ?? null }))
   }
 
   // Snapshot outgoing concept *before* switching so refs still hold its content
@@ -72,13 +86,18 @@ export default function EditorLayout({ onSnapshotReady }: EditorLayoutProps) {
     saveManualSnapshot(null)
 
     const restoredMeta: ConceptMeta = {
-      ...meta,                                          // keep current logo
+      ...meta,
       title:    content.title,
       org:      content.org,
       year:     content.year,
       web:      content.web,
       fontSize: content.fontSize,
       palette:  (content.palette as Palette | null) ?? 'color',
+      // Only restore logo if the snapshot has one; old snapshots (logoId=null)
+      // preserve the current logo to avoid surprise data loss.
+      ...(content.logoId !== null
+        ? { logo: content.logo, logoId: content.logoId }
+        : {}),
     }
     setMeta(restoredMeta)
     setMarkdown(content.markdown)
@@ -99,6 +118,7 @@ export default function EditorLayout({ onSnapshotReady }: EditorLayoutProps) {
         meta={meta}
         markdown={markdown}
         onMetaChange={handleMetaChange}
+        onLogoChange={handleLogoChange}
         onMarkdownChange={setMarkdown}
       />
       <PreviewPane meta={meta} markdown={markdown} />

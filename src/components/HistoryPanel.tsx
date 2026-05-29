@@ -75,6 +75,8 @@ export default function HistoryPanel({ activeId, onRestore }: HistoryPanelProps)
                     fontSize: Number(snap.fontSize),
                     palette:  snap.palette ? String(snap.palette) : null,
                     markdown: String(snap.markdown),
+                    logoId:   snap.logoId ? String(snap.logoId) : null,
+                    logo:     snap.logoData ? String(snap.logoData) : '',
                   })}
                 >
                   ↩

@@ -1,5 +1,5 @@
 import { useQuery } from '@evolu/react'
-import { conceptByIdQuery, noConceptQuery, useEvolu, type ConceptId } from '../db/schema'
+import { conceptByIdQuery, noConceptQuery, useEvolu, type ConceptId, type ConceptLogoId } from '../db/schema'
 import { DEFAULT_META, DEFAULT_MARKDOWN, type ConceptMeta, type Palette } from '../types'
 import { useMemo, useSyncExternalStore } from 'react'
 import { sqliteTrue } from '@evolu/common'
@@ -54,13 +54,16 @@ export function useActiveConcept(
   const activeRow = rows[0] ?? null
 
   // ── Derived form state from the DB row ──────────────────
+  // Prefer logoData from the join; fall back to legacy `logo` field for older rows.
+  const resolvedLogo = (activeRow?.logoData ?? activeRow?.logo) ?? ''
   const meta: ConceptMeta = {
     title:    activeRow?.title    ?? DEFAULT_META.title,
     org:      activeRow?.org      ?? DEFAULT_META.org,
     year:     activeRow?.year     ?? DEFAULT_META.year,
     web:      activeRow?.web      ?? DEFAULT_META.web,
     fontSize: activeRow?.fontSize ?? DEFAULT_META.fontSize,
-    logo:     activeRow?.logo     ?? '',
+    logo:     resolvedLogo,
+    logoId:   (activeRow?.logoId as string | null) ?? null,
     palette:  (activeRow?.palette as Palette | null) ?? 'color',
   }
   const markdown = activeRow?.markdown ?? DEFAULT_MARKDOWN
@@ -80,6 +83,7 @@ export function useActiveConcept(
       web:      '',
       fontSize: 9.5,
       logo:     null,
+      logoId:   null,
       palette:  'color',
       markdown: '',
     })
@@ -98,6 +102,12 @@ export function useActiveConcept(
     }
   }
 
+  /** Insert a new logo row and return its ID. Called when the user uploads a logo. */
+  function createLogo(data: string): ConceptLogoId | null {
+    const result = insert('conceptLogo', { data })
+    return result.ok ? result.value.id as ConceptLogoId : null
+  }
+
   return {
     activeId,
     activeRow,
@@ -106,5 +116,6 @@ export function useActiveConcept(
     selectConcept,
     createConcept,
     deleteConcept,
+    createLogo,
   }
 }
