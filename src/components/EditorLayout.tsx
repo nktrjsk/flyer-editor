@@ -43,7 +43,7 @@ export default function EditorLayout({ onSnapshotReady }: EditorLayoutProps) {
     setMarkdown(savedMarkdown)
   }
 
-  useAutoSave(activeId, meta, markdown)
+  useAutoSave(activeId, meta, markdown, lastSyncedIdRef.current === activeId)
   const { saveAutoSnapshot, saveManualSnapshot } = useSnapshots(activeId, meta, markdown)
 
   // Expose saveManualSnapshot to the parent (App → Toolbar) via callback ref
