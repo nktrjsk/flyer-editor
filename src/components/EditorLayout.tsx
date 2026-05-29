@@ -17,6 +17,7 @@ export default function EditorLayout({ onSnapshotReady }: EditorLayoutProps) {
   const concepts = useConcepts()
   const {
     activeId,
+    activeRow,
     meta: savedMeta,
     markdown: savedMarkdown,
     selectConcept,
@@ -28,9 +29,16 @@ export default function EditorLayout({ onSnapshotReady }: EditorLayoutProps) {
   const [meta, setMeta] = useState<ConceptMeta>(savedMeta)
   const [markdown, setMarkdown] = useState(savedMarkdown)
 
-  // Sync local state when active concept changes (switch, delete)
-  const prevActiveId = usePrevious(activeId)
-  if (prevActiveId !== activeId) {
+  // Sync local state when the active concept changes.
+  //
+  // We use a ref (not usePrevious) to track which concept has been synced.
+  // The guard `activeRow?.id === activeId` ensures we only sync once Evolu
+  // has returned data for the *new* concept — preventing a race where
+  // useQuery still holds stale data from the previous concept and we'd
+  // overwrite local state (and then auto-save) with the wrong content.
+  const lastSyncedIdRef = useRef<ConceptId | null>(null)
+  if (lastSyncedIdRef.current !== activeId && activeRow?.id === activeId) {
+    lastSyncedIdRef.current = activeId
     setMeta(savedMeta)
     setMarkdown(savedMarkdown)
   }
@@ -98,10 +106,3 @@ export default function EditorLayout({ onSnapshotReady }: EditorLayoutProps) {
   )
 }
 
-/** Returns the value from the previous render */
-function usePrevious<T>(value: T): T | undefined {
-  const ref = useRef<T | undefined>(undefined)
-  const prev = ref.current
-  ref.current = value
-  return prev
-}
