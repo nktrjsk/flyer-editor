@@ -62,7 +62,13 @@ const Schema = {
 }
 
 // ── Evolu instance ────────────────────────────────────────
-export const evolu = createEvolu(evoluReactWebDeps)(Schema)
+// reloadUrl: after a reset/restore Evolu reloads all tabs to this URL.
+// It defaults to "/", which on GitHub Pages (served under /flyer-editor/)
+// would land on root where nothing is deployed and break the app. Use Vite's
+// BASE_URL so it resolves to "/" in dev and "/flyer-editor/" in production.
+export const evolu = createEvolu(evoluReactWebDeps)(Schema, {
+  reloadUrl: import.meta.env.BASE_URL,
+})
 
 // ── Typed hooks ───────────────────────────────────────────
 export const useEvolu = createUseEvolu(evolu)
