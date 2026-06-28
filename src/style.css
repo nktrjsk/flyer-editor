@@ -206,7 +206,7 @@ body { font-family: var(--font-body); }
 /* ─── A5 page ─────────────────────────────────── */
 .page {
   width: 148mm;
-  min-height: 210mm;
+  height: 210mm;          /* fixed A5 — matches the printed page exactly */
   background: var(--bg);
   padding: 12mm 14mm;
   box-shadow: 0 3px 28px rgba(0,0,0,0.22);
@@ -214,7 +214,32 @@ body { font-family: var(--font-body); }
   flex-direction: column;
   color: var(--text);
   flex-shrink: 0;
+  overflow: hidden;       /* clip content past the page edge (it won't print either) */
+  position: relative;     /* anchor the overflow indicator */
   --base: 9.5pt; /* overridden per-page by JS */
+}
+
+/* ─── Overflow indicator ──────────────────────────
+   .is-overflowing is toggled by PreviewPane when a page's content is
+   clipped by the fixed A5 height. Screen-only — hidden when printing. */
+.page.is-overflowing .page-content {
+  /* fade the last clipped lines so the cut is obvious, not abrupt */
+  -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 12mm), transparent);
+          mask-image: linear-gradient(to bottom, #000 calc(100% - 12mm), transparent);
+}
+.page.is-overflowing::after {
+  content: "⚠ Obsah přesahuje stránku";
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  background: #c0392b;
+  color: #fff;
+  font-family: var(--font-body);
+  font-size: 8pt;
+  letter-spacing: 0.03em;
+  padding: 2.5px 9px;
+  border-top-left-radius: 4px;
+  pointer-events: none;
 }
 
 /* ─── B&W palette override ────────────────────── */
@@ -267,7 +292,9 @@ body { font-family: var(--font-body); }
 }
 
 /* ─── Content area ────────────────────────────── */
-.page-content { flex: 1; }
+/* min-height:0 lets the flex item shrink below its content; overflow:hidden
+   clips the excess so the footer stays pinned at the bottom of the A5 page. */
+.page-content { flex: 1; min-height: 0; overflow: hidden; }
 
 .page-content h2 {
   font-family: var(--font-display);
@@ -370,6 +397,13 @@ body { font-family: var(--font-body); }
   .source-pane,
   .page-label { display: none !important; }
 
+  /* Overflow indicator is an on-screen aid only */
+  .page.is-overflowing::after { display: none !important; }
+  .page.is-overflowing .page-content {
+    -webkit-mask-image: none !important;
+            mask-image: none !important;
+  }
+
   html, body { height: auto; overflow: visible; display: block; }
 
   #root { height: auto; display: block; }
@@ -387,7 +421,6 @@ body { font-family: var(--font-body); }
   .page {
     width: 148mm;
     height: 210mm;
-    min-height: unset;
     padding: 12mm 14mm;
     box-shadow: none;
     page-break-after: always;

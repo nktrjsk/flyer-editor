@@ -33,6 +33,19 @@ function fitTitles(pane: HTMLElement) {
   })
 }
 
+// Flag pages whose content is clipped by the fixed A5 height. The content
+// area has overflow:hidden, so scrollHeight (full content) exceeding
+// clientHeight (visible box) means text is being cut off the page.
+function markOverflow(pane: HTMLElement) {
+  pane.querySelectorAll<HTMLElement>('.page').forEach(page => {
+    const content = page.querySelector<HTMLElement>('.page-content')
+    if (!content) return
+    // 1px tolerance avoids false positives from sub-pixel rounding
+    const overflowing = content.scrollHeight - content.clientHeight > 1
+    page.classList.toggle('is-overflowing', overflowing)
+  })
+}
+
 export default function PreviewPane({ meta, markdown }: PreviewPaneProps) {
   const paneRef = useRef<HTMLDivElement>(null)
   const fontsReady = useRef(false)
@@ -40,12 +53,18 @@ export default function PreviewPane({ meta, markdown }: PreviewPaneProps) {
   useEffect(() => {
     document.fonts.ready.then(() => {
       fontsReady.current = true
-      if (paneRef.current) fitTitles(paneRef.current)
+      if (paneRef.current) {
+        fitTitles(paneRef.current)
+        markOverflow(paneRef.current)
+      }
     })
   }, [])
 
   useLayoutEffect(() => {
-    if (fontsReady.current && paneRef.current) fitTitles(paneRef.current)
+    if (fontsReady.current && paneRef.current) {
+      fitTitles(paneRef.current)
+      markOverflow(paneRef.current)
+    }
   })
 
   const sections = markdown.split(/\n\s*---\s*\n/)
