@@ -46,6 +46,7 @@ const Schema = {
     conceptId: ConceptId,
     label: nullOr(EvoluString),
     source: nullOr(EvoluString),
+    summary: nullOr(EvoluString),
     title: EvoluString,
     org: EvoluString,
     year: EvoluString,
@@ -117,10 +118,10 @@ export const snapshotsByConceptQuery = (conceptId: ConceptId) =>
       .selectFrom('conceptSnapshot')
       .leftJoin('conceptLogo', 'conceptLogo.id', 'conceptSnapshot.logoId')
       .select(['conceptSnapshot.id', 'conceptSnapshot.conceptId', 'conceptSnapshot.label',
-               'conceptSnapshot.source', 'conceptSnapshot.title', 'conceptSnapshot.org',
-               'conceptSnapshot.year', 'conceptSnapshot.web', 'conceptSnapshot.fontSize',
-               'conceptSnapshot.palette', 'conceptSnapshot.markdown', 'conceptSnapshot.createdAt',
-               'conceptSnapshot.logoId'])
+               'conceptSnapshot.source', 'conceptSnapshot.summary', 'conceptSnapshot.title',
+               'conceptSnapshot.org', 'conceptSnapshot.year', 'conceptSnapshot.web',
+               'conceptSnapshot.fontSize', 'conceptSnapshot.palette', 'conceptSnapshot.markdown',
+               'conceptSnapshot.createdAt', 'conceptSnapshot.logoId'])
       .select('conceptLogo.data as logoData')
       .where('conceptSnapshot.conceptId', '=', conceptId)
       .where('conceptSnapshot.isDeleted', 'is not', sqliteTrue)
@@ -133,10 +134,10 @@ export const noSnapshotQuery = evolu.createQuery(db =>
     .selectFrom('conceptSnapshot')
     .leftJoin('conceptLogo', 'conceptLogo.id', 'conceptSnapshot.logoId')
     .select(['conceptSnapshot.id', 'conceptSnapshot.conceptId', 'conceptSnapshot.label',
-             'conceptSnapshot.source', 'conceptSnapshot.title', 'conceptSnapshot.org',
-             'conceptSnapshot.year', 'conceptSnapshot.web', 'conceptSnapshot.fontSize',
-             'conceptSnapshot.palette', 'conceptSnapshot.markdown', 'conceptSnapshot.createdAt',
-             'conceptSnapshot.logoId'])
+             'conceptSnapshot.source', 'conceptSnapshot.summary', 'conceptSnapshot.title',
+             'conceptSnapshot.org', 'conceptSnapshot.year', 'conceptSnapshot.web',
+             'conceptSnapshot.fontSize', 'conceptSnapshot.palette', 'conceptSnapshot.markdown',
+             'conceptSnapshot.createdAt', 'conceptSnapshot.logoId'])
     .select('conceptLogo.data as logoData')
     .where('conceptSnapshot.id', '=', '' as ConceptSnapshotId)
     .limit(0),
