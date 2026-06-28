@@ -37,9 +37,16 @@ The bridge is a **dumb relay**: it forwards each MCP tool call to the active tab
 and returns the tab's reply. All the real logic (diffing, gating, snapshots)
 lives in the app, where it already exists.
 
-### Why `wss`, not `ws`
-An `https` page (Pages) cannot open `ws://localhost` (mixed content, blocked).
-`wss://localhost` *is* allowed if the local cert is trusted — hence `mkcert`.
+### Transport: `wss` for https, `ws` for http dev
+An `https` page (GitHub Pages) cannot open `ws://localhost` (mixed content,
+blocked) — it must use `wss://localhost:8787`, which needs the local cert
+trusted (hence `mkcert`). A local **dev** page is `http://localhost:5173`, which
+can open plain `ws://localhost:8788` with **no cert at all**.
+
+So the bridge listens on **both** ports and the app picks by `location.protocol`.
+Net effect: local development needs no `mkcert`; only the deployed https path
+does. Both listeners bind to loopback only and enforce the same origin
+allowlist + shared token.
 
 ### Security (not optional)
 `wss://localhost:PORT` is reachable by **any** web page you have open, not just
@@ -57,7 +64,7 @@ this app. The bridge therefore enforces, on every connection:
 | `get_screenshot()` | Best-effort PNG of `.page` via html2canvas (after `document.fonts.ready`). Approximate — see *Vision caveat*. |
 | `propose_changes({ markdown?, title?, palette?, fontSize?, org?, year?, web? })` | Stages an **edit proposal**. Returns `"staged"`. Never writes. |
 | `switch_concept(id)` | Stages a **switch proposal** ("Claude chce otevřít …"). Returns `"staged"`. |
-| `await_decision()` | **Blocks** until you Accept/Reject in the review pane, then returns `{ accepted, reason? }`. Caps at ~5 min → `{ status: "pending" }` (call again). This is how Claude is "notified" you finished reviewing. |
+| `await_decision()` | **Blocks** until you Accept/Reject in the review pane, then returns `{ accepted, reason? }`. Caps at ~45 s → `{ status: "pending" }` (call again). The cap sits under the MCP client's ~60 s per-request timeout. This is how Claude is "notified" you finished reviewing. |
 | `list_concepts()` | `[{ id, title }]`. |
 
 `create` / `delete` concept are intentionally **human-only** in v1 (delete is

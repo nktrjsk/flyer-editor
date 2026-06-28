@@ -1,16 +1,14 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   connectBridge,
-  disconnectBridge,
   devInvoke,
   getBridgeStatus,
+  isEnabled,
   onBridgeStatus,
+  savedToken,
   setBridgeDispatcher,
   type BridgeStatus,
 } from '../lib/aiBridge'
-
-const TOKEN_KEY = 'flyer.aiToken'
-const ENABLED_KEY = 'flyer.aiEnabled'
 
 /** A map of tool name → handler. Handlers may close over live editor state. */
 export type ToolHandlers = Record<string, (args: Record<string, unknown>) => Promise<unknown> | unknown>
@@ -47,26 +45,8 @@ export function useAiBridge(handlers: ToolHandlers) {
 
   // Auto-connect on mount if the user previously enabled the bridge.
   useEffect(() => {
-    const token = localStorage.getItem(TOKEN_KEY)
-    const enabled = localStorage.getItem(ENABLED_KEY) === 'true'
-    if (token && enabled) connectBridge(token)
+    if (isEnabled() && savedToken()) connectBridge(savedToken())
   }, [])
 
-  const connect = useCallback((token: string) => {
-    localStorage.setItem(TOKEN_KEY, token.trim())
-    localStorage.setItem(ENABLED_KEY, 'true')
-    connectBridge(token.trim())
-  }, [])
-
-  const disconnect = useCallback(() => {
-    localStorage.setItem(ENABLED_KEY, 'false')
-    disconnectBridge()
-  }, [])
-
-  return {
-    status,
-    connect,
-    disconnect,
-    savedToken: () => localStorage.getItem(TOKEN_KEY) ?? '',
-  }
+  return { status }
 }

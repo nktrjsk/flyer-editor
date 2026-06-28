@@ -21,6 +21,9 @@ function bridgeUrl(token: string): string {
   return `${scheme}://localhost:${port}/?token=${encodeURIComponent(token)}`
 }
 
+export const AI_TOKEN_KEY = 'flyer.aiToken'
+export const AI_ENABLED_KEY = 'flyer.aiEnabled'
+
 export type BridgeStatus = 'disconnected' | 'connecting' | 'connected'
 export type ToolDispatcher = (tool: string, args: Record<string, unknown>) => Promise<unknown> | unknown
 
@@ -63,6 +66,25 @@ export function onBridgeStatus(cb: (s: BridgeStatus) => void): () => void {
 
 export function getBridgeStatus(): BridgeStatus {
   return status
+}
+
+// --- enable/disable (persisted) ---------------------------------------------
+// One path shared by the auto-connect hook and the toolbar control.
+export function savedToken(): string {
+  return localStorage.getItem(AI_TOKEN_KEY) ?? ''
+}
+export function isEnabled(): boolean {
+  return localStorage.getItem(AI_ENABLED_KEY) === 'true'
+}
+export function enableBridge(token: string) {
+  const t = token.trim()
+  localStorage.setItem(AI_TOKEN_KEY, t)
+  localStorage.setItem(AI_ENABLED_KEY, 'true')
+  connectBridge(t)
+}
+export function disableBridge() {
+  localStorage.setItem(AI_ENABLED_KEY, 'false')
+  disconnectBridge()
 }
 
 export function connectBridge(t: string) {

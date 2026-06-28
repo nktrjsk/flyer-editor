@@ -104,6 +104,61 @@ body { font-family: var(--font-body); background: #191c1e; }
 }
 .toolbar button:hover { background: rgba(255,255,255,0.26); }
 
+/* ── AI connect toolbar control ───────────────────────────── */
+.ai-connect { position: relative; }
+.ai-connect-btn.is-connected {
+  background: rgba(255,255,255,0.30);
+  border-color: rgba(255,255,255,0.55);
+}
+.ai-connect-popover {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 6px);
+  width: 300px;
+  background: #fff;
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 8px 28px rgba(0,0,0,0.28);
+  padding: 12px 14px;
+  z-index: 950;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  text-align: left;
+}
+.ai-connect-row { font-size: 9.5pt; color: var(--muted); }
+.ai-connect-field { display: flex; flex-direction: column; gap: 4px; font-size: 9pt; color: var(--muted); }
+.ai-connect-field code { font-size: 8.5pt; }
+.ai-connect-field input {
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 9pt;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text);
+}
+.ai-connect-actions { display: flex; justify-content: flex-end; gap: 8px; }
+/* override inherited .toolbar button styling inside the (light) popover */
+.ai-connect-popover button {
+  background: #efece6;
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-size: 9.5pt;
+  padding: 6px 14px;
+  border-radius: 4px;
+}
+.ai-connect-popover button:hover { background: #e4e0d8; }
+.ai-connect-popover button.ai-connect-primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+.ai-connect-popover button.ai-connect-primary:hover { background: #17564c; }
+.ai-connect-popover button:disabled { opacity: 0.5; cursor: not-allowed; }
+.ai-connect-hint { font-size: 8.5pt; color: var(--muted); line-height: 1.5; }
+.ai-connect-hint code { font-size: 8pt; background: var(--accent-light); padding: 1px 4px; border-radius: 3px; }
+
 /* ─── Layout ──────────────────────────────────── */
 .editor-layout {
   display: grid;
