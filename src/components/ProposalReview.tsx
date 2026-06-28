@@ -66,7 +66,7 @@ export default function ProposalReview({
       <div className="proposal-review-body">
         {proposal.kind === 'switch' ? (
           <p className="proposal-review-switch">
-            AI chce otevřít leták <strong>{proposal.toTitle || proposal.toId}</strong>.
+            AI chce otevřít leták <strong>{proposal.toTitle || '(bez názvu)'}</strong>.
             Aktuální leták zůstane uložený.
           </p>
         ) : (

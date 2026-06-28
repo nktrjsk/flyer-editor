@@ -161,6 +161,15 @@ export default function EditorLayout({ onSnapshotReady }: EditorLayoutProps) {
       setPendingProposal({ kind: 'edit', target: { meta: nextMeta, markdown: nextMarkdown } })
       return 'staged'
     },
+    switch_concept: (args: Record<string, unknown>) => {
+      const id = String(args.id ?? '')
+      if (!id) throw new Error('Chybí id konceptu.')
+      const target = conceptList.find(c => c.id === id)
+      if (!target) throw new Error('Koncept s tímto id neexistuje. Použij list_concepts.')
+      if (id === activeId) throw new Error('Tento leták je už otevřený.')
+      setPendingProposal({ kind: 'switch', toId: id, toTitle: target.title })
+      return 'staged'
+    },
     await_decision: () => {
       // A decision already made (before this call) is delivered immediately.
       if (bufferedDecisionRef.current) {
@@ -236,8 +245,18 @@ export default function EditorLayout({ onSnapshotReady }: EditorLayoutProps) {
           onClick: () => { setMeta(prevMeta); setMarkdown(prevMarkdown) },
         },
       })
+    } else if (p.kind === 'switch') {
+      // Snapshot the outgoing concept first, then switch — mirrors handleSelect.
+      const prevId = activeId
+      saveAutoSnapshot()
+      selectConcept(p.toId as ConceptId)
+      setPendingProposal(null)
+      settleDecision({ accepted: true })
+      showToast({
+        message: 'Přepnuto na jiný leták.',
+        ...(prevId ? { action: { label: 'Zpět', onClick: () => selectConcept(prevId) } } : {}),
+      })
     }
-    // 'switch' handled in step 5
   }
 
   function rejectProposal(reason?: string) {

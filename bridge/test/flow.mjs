@@ -1,10 +1,12 @@
 #!/usr/bin/env node
 /**
- * Full proposal-flow probe: propose_changes → await_decision → get_state.
- * Run in the background, then click Přijmout/Zamítnout in the editor; this
- * prints the decision the human made and the resulting live state.
+ * Full proposal-flow probe: <tool> → await_decision → get_state.
+ * Run in the background, then click Přijmout/Zamítnout/Přepnout in the editor;
+ * this prints the decision the human made and the resulting live state.
  *
- * Usage:  node test/flow.mjs [proposeArgsJson]
+ * Usage:  node test/flow.mjs [tool] [argsJson]
+ *   node test/flow.mjs propose_changes '{"title":"X"}'
+ *   node test/flow.mjs switch_concept '{"id":"..."}'
  */
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -13,8 +15,11 @@ import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const root = path.join(__dirname, '..')
-const proposeArgs = process.argv[2]
-  ? JSON.parse(process.argv[2])
+const hasToolArg = process.argv[2] && !process.argv[2].startsWith('{')
+const tool = hasToolArg ? process.argv[2] : 'propose_changes'
+const argsRaw = hasToolArg ? process.argv[3] : process.argv[2]
+const proposeArgs = argsRaw
+  ? JSON.parse(argsRaw)
   : { title: 'Upraveno AI', markdown: '## Nový obsah\n\nKrátký text navržený AI.\n\nDruhý odstavec.' }
 
 const transport = new StdioClientTransport({ command: 'node', args: ['server.js'], cwd: root, stderr: 'inherit' })
@@ -30,8 +35,8 @@ for (let i = 0; i < 30; i++) {
   await new Promise(res => setTimeout(res, 2000))
 }
 
-console.log('→ propose_changes', JSON.stringify(proposeArgs))
-const staged = await client.callTool({ name: 'propose_changes', arguments: proposeArgs })
+console.log(`→ ${tool}`, JSON.stringify(proposeArgs))
+const staged = await client.callTool({ name: tool, arguments: proposeArgs })
 console.log('  result:', text(staged))
 
 console.log('→ await_decision (blocks until you click in the editor)…')
