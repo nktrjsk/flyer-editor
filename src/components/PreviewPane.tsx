@@ -37,13 +37,18 @@ function fitTitles(pane: HTMLElement) {
 // area has overflow:hidden, so scrollHeight (full content) exceeding
 // clientHeight (visible box) means text is being cut off the page.
 function markOverflow(pane: HTMLElement) {
+  let anyOverflow = false
   pane.querySelectorAll<HTMLElement>('.page').forEach(page => {
     const content = page.querySelector<HTMLElement>('.page-content')
     if (!content) return
     // 1px tolerance avoids false positives from sub-pixel rounding
     const overflowing = content.scrollHeight - content.clientHeight > 1
     page.classList.toggle('is-overflowing', overflowing)
+    if (overflowing) anyOverflow = true
   })
+  // Drives the always-on overflow top bar — visible regardless of scroll
+  // position, so overflow is noticed without scrolling down to the clipped page.
+  pane.classList.toggle('has-overflow', anyOverflow)
 }
 
 export default function PreviewPane({ meta, markdown }: PreviewPaneProps) {
@@ -71,6 +76,7 @@ export default function PreviewPane({ meta, markdown }: PreviewPaneProps) {
 
   return (
     <div className="preview-pane" id="preview" ref={paneRef}>
+      <div className="overflow-flag">⚠ Obsah přesahuje stránku — část textu se nevejde a nevytiskne se</div>
       {sections.map((section, i) => (
         <Page
           key={i}
