@@ -8,10 +8,11 @@ interface SidebarProps {
   onNew: () => void
   onDelete: (id: string) => void
   onRestore: (content: SnapshotContent) => void
+  onBrowse: () => void
 }
 
 export default function Sidebar({
-  concepts, activeId, onSelect, onNew, onDelete, onRestore,
+  concepts, activeId, onSelect, onNew, onDelete, onRestore, onBrowse,
 }: SidebarProps) {
   return (
     <div className="sidebar">
@@ -42,6 +43,7 @@ export default function Sidebar({
       <HistoryPanel
         activeId={activeId as import('../db/schema').ConceptId | null}
         onRestore={onRestore}
+        onBrowse={onBrowse}
       />
     </div>
   )

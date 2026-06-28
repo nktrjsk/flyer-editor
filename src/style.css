@@ -874,3 +874,243 @@ body { font-family: var(--font-body); background: #191c1e; }
   cursor: not-allowed;
 }
 
+/* ── Toast notifications ──────────────────────────────────── */
+.toast-stack {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 9999;
+  pointer-events: none;
+}
+
+.toast {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #2a2d30;
+  border: 1px solid #3a3d3f;
+  border-radius: 6px;
+  padding: 9px 14px;
+  color: #ccc9c2;
+  font-size: 11px;
+  min-width: 220px;
+  max-width: 420px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  pointer-events: auto;
+}
+
+.toast--visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.toast-message {
+  flex: 1;
+}
+
+.toast-action {
+  background: none;
+  border: 1px solid #3a3d3f;
+  border-radius: 3px;
+  color: #9ecfca;
+  font-size: 10px;
+  padding: 3px 8px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: border-color 0.15s, color 0.15s;
+}
+.toast-action:hover {
+  border-color: var(--accent);
+  color: #ccc;
+}
+
+/* ── History browse button ────────────────────────────────── */
+.history-browse-btn {
+  display: block;
+  width: 100%;
+  background: none;
+  border: none;
+  border-top: 1px solid #2e3234;
+  color: #6e8a88;
+  font-size: 9.5px;
+  padding: 7px 10px;
+  text-align: left;
+  cursor: pointer;
+  transition: color 0.15s;
+  margin-top: 4px;
+}
+.history-browse-btn:hover {
+  color: #9ecfca;
+}
+
+/* ── Snapshot badge ───────────────────────────────────────── */
+.snapshot-badge {
+  font-size: 8px;
+  background: rgba(29,106,94,0.25);
+  border: 1px solid rgba(29,106,94,0.5);
+  border-radius: 3px;
+  color: #9ecfca;
+  padding: 1px 4px;
+  white-space: nowrap;
+}
+
+/* ── HistoryExplorer modal ────────────────────────────────── */
+.history-explorer-modal {
+  background: #1c1f21;
+  border: 1px solid #2e3234;
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+  width: min(900px, 95vw);
+  height: min(640px, 90vh);
+  overflow: hidden;
+  box-shadow: 0 8px 40px rgba(0,0,0,0.6);
+}
+
+.history-explorer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px 10px;
+  border-bottom: 1px solid #2e3234;
+  flex-shrink: 0;
+}
+
+.history-explorer-body {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+.history-explorer-list {
+  width: 220px;
+  flex-shrink: 0;
+  overflow-y: auto;
+  border-right: 1px solid #2e3234;
+  padding: 4px 0;
+}
+
+.history-explorer-group-header {
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #555;
+  padding: 8px 10px 4px;
+  position: sticky;
+  top: 0;
+  background: #1c1f21;
+  z-index: 1;
+}
+
+.history-explorer-item {
+  padding: 7px 10px;
+  cursor: pointer;
+  border-left: 2px solid transparent;
+  transition: background 0.12s;
+}
+.history-explorer-item:hover {
+  background: #232629;
+}
+.history-explorer-item.selected {
+  background: #232629;
+  border-left-color: var(--accent);
+}
+
+.history-explorer-item-label {
+  display: block;
+  font-size: 10.5px;
+  color: #ccc9c2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 185px;
+}
+
+.history-explorer-item-meta {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 2px;
+}
+
+.history-explorer-item-time {
+  font-size: 9px;
+  color: #555;
+}
+
+.history-explorer-preview {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 12px;
+  gap: 10px;
+}
+
+.history-explorer-preview-scroll {
+  flex: 1;
+  overflow: auto;
+  border: 1px solid #2e3234;
+  border-radius: 4px;
+  padding: 8px;
+  background: #141618;
+}
+
+.history-explorer-restore-btn {
+  background: var(--accent);
+  border: none;
+  border-radius: 4px;
+  color: #fff;
+  font-size: 11px;
+  padding: 8px 16px;
+  cursor: pointer;
+  align-self: flex-end;
+  transition: opacity 0.15s;
+  flex-shrink: 0;
+}
+.history-explorer-restore-btn:hover {
+  opacity: 0.85;
+}
+
+/* ── Diff view ────────────────────────────────────────────── */
+.diff-view {
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 10px;
+  line-height: 1.5;
+  background: #141618;
+  border: 1px solid #2e3234;
+  border-radius: 4px;
+  padding: 6px 8px;
+  overflow-x: auto;
+  max-height: 140px;
+  overflow-y: auto;
+  flex-shrink: 0;
+}
+
+.diff-line {
+  white-space: pre;
+}
+.diff-line--added {
+  color: #7ec87e;
+  background: rgba(126,200,126,0.08);
+}
+.diff-line--removed {
+  color: #e07070;
+  background: rgba(224,112,112,0.08);
+}
+.diff-line--unchanged {
+  color: #555;
+}
+
+/* ── Confirm modal ────────────────────────────────────────── */
+.confirm-modal {
+  max-width: 380px;
+}
+

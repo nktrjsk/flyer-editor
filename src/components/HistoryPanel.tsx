@@ -27,9 +27,10 @@ function formatRelativeTime(isoString: string): string {
 interface HistoryPanelProps {
   activeId: ConceptId | null
   onRestore: (content: SnapshotContent) => void
+  onBrowse: () => void
 }
 
-export default function HistoryPanel({ activeId, onRestore }: HistoryPanelProps) {
+export default function HistoryPanel({ activeId, onRestore, onBrowse }: HistoryPanelProps) {
   const [expanded, setExpanded] = useState(true)
 
   const query = useMemo(
@@ -38,28 +39,34 @@ export default function HistoryPanel({ activeId, onRestore }: HistoryPanelProps)
   )
   const snapshots = useQuery(query)
 
+  // Only named (manual) snapshots get rows in the panel; auto snapshots stay
+  // out of sight and are reachable via "Procházet historii".
+  const manualSnapshots = snapshots.filter(s => s.source === null)
+
+  // Render the panel whenever the concept has ANY history — otherwise the
+  // explorer (the only place auto snapshots live) would be unreachable for a
+  // concept that has auto snapshots but no named ones.
   if (!activeId || snapshots.length === 0) return null
 
-  const visible = snapshots.slice(0, MAX_VISIBLE)
+  const visible = manualSnapshots.slice(0, MAX_VISIBLE)
 
   return (
     <div className="history-panel">
       <button className="history-toggle" onClick={() => setExpanded(e => !e)}>
-        <span className="sidebar-label">Historie</span>
+        <span className="sidebar-label">Zálohy</span>
         <span className="history-chevron">{expanded ? '▾' : '▸'}</span>
       </button>
 
       {expanded && (
         <div className="history-list">
           {visible.map(snap => {
-            const isManual = snap.source === null
             return (
               <div
                 key={snap.id as string}
-                className={`history-item${isManual ? ' history-item--manual' : ''}`}
+                className="history-item history-item--manual"
               >
                 <span className="history-item-label" title={snap.label ?? undefined}>
-                  {snap.label ?? (isManual ? '—' : 'auto')}
+                  {snap.label ?? '—'}
                 </span>
                 <span className="history-item-time">
                   {formatRelativeTime(String(snap.createdAt))}
@@ -84,11 +91,14 @@ export default function HistoryPanel({ activeId, onRestore }: HistoryPanelProps)
               </div>
             )
           })}
-          {snapshots.length > MAX_VISIBLE && (
+          {manualSnapshots.length > MAX_VISIBLE && (
             <div className="history-overflow">
-              +{snapshots.length - MAX_VISIBLE} starších
+              +{manualSnapshots.length - MAX_VISIBLE} starších
             </div>
           )}
+          <button className="history-browse-btn" onClick={onBrowse}>
+            Procházet historii
+          </button>
         </div>
       )}
     </div>

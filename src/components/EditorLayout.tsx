@@ -5,9 +5,12 @@ import { useConcepts } from '../hooks/useConcepts'
 import { useActiveConcept } from '../hooks/useActiveConcept'
 import { useAutoSave } from '../hooks/useAutoSave'
 import { useSnapshots } from '../hooks/useSnapshots'
+import { useToast } from './ToastProvider'
+import { useConfirm } from './ConfirmProvider'
 import Sidebar from './Sidebar'
 import SourcePane from './SourcePane'
 import PreviewPane from './PreviewPane'
+import HistoryExplorer from './HistoryExplorer'
 import type { ConceptId } from '../db/schema'
 
 interface EditorLayoutProps {
@@ -66,7 +69,13 @@ export default function EditorLayout({ onSnapshotReady }: EditorLayoutProps) {
       markdown,
     })
   }, [activeId, concepts, meta, markdown, syncedId])
+
   const { saveAutoSnapshot, saveManualSnapshot } = useSnapshots(activeId, meta, markdown)
+
+  const { showToast } = useToast()
+  const { confirm } = useConfirm()
+
+  const [historyExplorerOpen, setHistoryExplorerOpen] = useState(false)
 
   // Expose saveManualSnapshot to the parent (App → Toolbar) via callback ref
   const onSnapshotReadyRef = useRef(onSnapshotReady)
@@ -98,9 +107,22 @@ export default function EditorLayout({ onSnapshotReady }: EditorLayoutProps) {
     deleteConcept(id)
   }
 
-  function handleRestore(content: SnapshotContent) {
+  async function handleRestore(content: SnapshotContent) {
     // Save current state first so the restore itself is undoable
-    saveManualSnapshot(null)
+    saveManualSnapshot('Před obnovením')
+
+    // Store previous state for undo
+    const prevMeta = { ...meta }
+    const prevMarkdown = markdown
+
+    const ok = await confirm({
+      title: 'Obnovit verzi?',
+      message: 'Aktuální stav byl automaticky zazálohován. Přejete si obnovit vybranou verzi?',
+      confirmLabel: 'Obnovit',
+      cancelLabel: 'Zrušit',
+    })
+
+    if (!ok) return
 
     const restoredMeta: ConceptMeta = {
       ...meta,
@@ -118,6 +140,17 @@ export default function EditorLayout({ onSnapshotReady }: EditorLayoutProps) {
     }
     setMeta(restoredMeta)
     setMarkdown(content.markdown)
+
+    showToast({
+      message: 'Verze obnovena.',
+      action: {
+        label: 'Zpět',
+        onClick: () => {
+          setMeta(prevMeta)
+          setMarkdown(prevMarkdown)
+        },
+      },
+    })
     // useAutoSave picks up the state change and persists within 500 ms
   }
 
@@ -130,6 +163,7 @@ export default function EditorLayout({ onSnapshotReady }: EditorLayoutProps) {
         onNew={createConcept}
         onDelete={id => handleDelete(id as ConceptId)}
         onRestore={handleRestore}
+        onBrowse={() => setHistoryExplorerOpen(true)}
       />
       <SourcePane
         meta={meta}
@@ -139,7 +173,13 @@ export default function EditorLayout({ onSnapshotReady }: EditorLayoutProps) {
         onMarkdownChange={setMarkdown}
       />
       <PreviewPane meta={meta} markdown={markdown} />
+      {historyExplorerOpen && (
+        <HistoryExplorer
+          activeId={activeId}
+          onRestore={handleRestore}
+          onClose={() => setHistoryExplorerOpen(false)}
+        />
+      )}
     </div>
   )
 }
-
