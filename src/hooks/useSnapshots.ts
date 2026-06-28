@@ -80,8 +80,9 @@ export function useSnapshots(
   metaRef.current = meta
   markdownRef.current = markdown
 
-  // Last auto-snapshot content key per concept (deduplication)
-  const lastAutoKeyRef = useRef('')
+  // Content key of the last snapshot written (any source) — used to skip
+  // duplicate AUTO snapshots that would otherwise carry a "beze změny" summary.
+  const lastContentKeyRef = useRef('')
 
   // Tracks previously-captured content for diff computation
   const lastSnapshotContentRef = useRef<{ meta: ConceptMeta; markdown: string } | null>(null)
@@ -94,7 +95,7 @@ export function useSnapshots(
 
   // Reset dedup key and seed lastSnapshotContentRef when the active concept changes
   useEffect(() => {
-    lastAutoKeyRef.current = ''
+    lastContentKeyRef.current = ''
     lastAutoTimeRef.current = 0
     if (debounceTimerRef.current) {
       clearTimeout(debounceTimerRef.current)
@@ -111,19 +112,21 @@ export function useSnapshots(
         lastSnapshotContentRef.current = null
         return
       }
-      lastSnapshotContentRef.current = {
-        meta: {
-          title: String(first.title ?? ''),
-          org: String(first.org ?? ''),
-          year: String(first.year ?? ''),
-          web: String(first.web ?? ''),
-          fontSize: Number(first.fontSize ?? 9.5),
-          palette: first.palette ? (String(first.palette) as Palette) : 'color',
-          logo: first.logoData ? String(first.logoData) : '',
-          logoId: first.logoId ? String(first.logoId) : null,
-        },
-        markdown: String(first.markdown ?? ''),
+      const seededMeta: ConceptMeta = {
+        title: String(first.title ?? ''),
+        org: String(first.org ?? ''),
+        year: String(first.year ?? ''),
+        web: String(first.web ?? ''),
+        fontSize: Number(first.fontSize ?? 9.5),
+        palette: first.palette ? (String(first.palette) as Palette) : 'color',
+        logo: first.logoData ? String(first.logoData) : '',
+        logoId: first.logoId ? String(first.logoId) : null,
       }
+      const seededMarkdown = String(first.markdown ?? '')
+      lastSnapshotContentRef.current = { meta: seededMeta, markdown: seededMarkdown }
+      // Seed the dedup key too, so the debounce armed on mount doesn't write a
+      // spurious "beze změny" auto-snapshot 45s after a load with no edits.
+      lastContentKeyRef.current = contentKey(seededMeta, seededMarkdown)
     })
   }, [activeId])
 
@@ -181,7 +184,7 @@ export function useSnapshots(
     if (!id) return
 
     const key = contentKey(metaRef.current, markdownRef.current)
-    if (source === 'auto' && key === lastAutoKeyRef.current) return
+    if (source === 'auto' && key === lastContentKeyRef.current) return
 
     const summary = describeChange(lastSnapshotContentRef.current, {
       meta: metaRef.current,
@@ -209,9 +212,18 @@ export function useSnapshots(
       markdown: markdownRef.current,
     }
 
+    // Any write (manual OR auto) captures the current content, so record the
+    // dedup key + reset the interval clock and cancel any armed debounce.
+    // Without this, a manual save leaves the 45s timer running and it fires a
+    // redundant "beze změny" auto-snapshot of the just-saved content.
+    lastContentKeyRef.current = key
+    lastAutoTimeRef.current = Date.now()
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current)
+      debounceTimerRef.current = null
+    }
+
     if (source === 'auto') {
-      lastAutoKeyRef.current = key
-      lastAutoTimeRef.current = Date.now()
       pruneRef.current(id)
     }
   }
