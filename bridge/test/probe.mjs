@@ -12,6 +12,7 @@
  * Owns the only server instance on the default port — don't run a standalone
  * bridge at the same time.
  */
+import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
@@ -53,7 +54,11 @@ if (!result) {
 console.log(`=== ${tool} ===`)
 for (const c of result.content) {
   if (c.type === 'text') console.log(c.text)
-  else if (c.type === 'image') console.log(`[image ${c.mimeType}, ${c.data.length} base64 chars]`)
+  else if (c.type === 'image') {
+    const outPath = '/tmp/flyer-shot.png'
+    fs.writeFileSync(outPath, Buffer.from(c.data, 'base64'))
+    console.log(`[image ${c.mimeType}, ${c.data.length} base64 chars] → saved ${outPath}`)
+  }
 }
 await client.close()
 process.exit(0)

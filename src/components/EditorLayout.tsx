@@ -6,6 +6,7 @@ import { useActiveConcept } from '../hooks/useActiveConcept'
 import { useAutoSave } from '../hooks/useAutoSave'
 import { useSnapshots } from '../hooks/useSnapshots'
 import { useAiBridge } from '../hooks/useAiBridge'
+import { captureFlyerPng } from '../lib/flyerScreenshot'
 import { useToast } from './ToastProvider'
 import { useConfirm } from './ConfirmProvider'
 import Sidebar from './Sidebar'
@@ -119,6 +120,7 @@ export default function EditorLayout({ onSnapshotReady }: EditorLayoutProps) {
       }
     },
     list_concepts: () => conceptList,
+    get_screenshot: () => captureFlyerPng(),
   })
 
   const { showToast } = useToast()
