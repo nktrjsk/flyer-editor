@@ -34,6 +34,33 @@
       <div class="il-preview"></div>
     </div>
   </div></div>
+  <script>
+    // Boot watchdog: if React hasn't replaced #initial-loader within 12s — e.g.
+    // a stale service worker or failed bundle stops the app booting at all —
+    // turn the static frame into an escape hatch so the user is never stranded.
+    // (Once React mounts, #initial-loader is gone and this is a no-op.)
+    (function () {
+      window.__resetApp = function () {
+        var reload = function () { location.reload(); };
+        var jobs = [];
+        try { if (navigator.serviceWorker) jobs.push(navigator.serviceWorker.getRegistrations().then(function (rs) { return Promise.all(rs.map(function (r) { return r.unregister(); })); })); } catch (e) {}
+        try { if (window.caches) jobs.push(caches.keys().then(function (ks) { return Promise.all(ks.map(function (k) { return caches.delete(k); })); })); } catch (e) {}
+        try { localStorage.clear(); } catch (e) {}
+        Promise.all(jobs).then(reload, reload);
+      };
+      setTimeout(function () {
+        var el = document.getElementById('initial-loader');
+        if (!el) return;
+        el.innerHTML =
+          '<div style="margin:auto;max-width:340px;text-align:center;color:#ccc9c2;font-family:Georgia,serif;padding:24px">' +
+          '<p style="font-size:17px;font-weight:600;color:#fff;margin:0 0 8px">Aplikaci se nepodařilo načíst</p>' +
+          '<p style="font-size:13px;color:#9a9690;line-height:1.5;margin:0 0 18px">Zkuste obnovit stránku. Pokud problém přetrvává, vymažte lokální data tohoto prohlížeče.</p>' +
+          '<button onclick="location.reload()" style="font-family:Georgia,serif;font-size:13px;padding:7px 16px;margin:0 5px;border-radius:4px;cursor:pointer;border:1px solid #3a3d3f;background:#2a2f31;color:#ccc9c2">Načíst znovu</button>' +
+          '<button onclick="window.__resetApp()" style="font-family:Georgia,serif;font-size:13px;padding:7px 16px;margin:0 5px;border-radius:4px;cursor:pointer;border:1px solid #633;background:#2a2f31;color:#f88">Vymazat data a obnovit</button>' +
+          '</div>';
+      }, 12000);
+    })();
+  </script>
   <script type="module" src="/src/main.tsx"></script>
 </body>
 </html>

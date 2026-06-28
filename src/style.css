@@ -28,6 +28,51 @@ body { font-family: var(--font-body); background: #191c1e; }
 .skeleton-line.title { height: 28px; width: 65%; margin-bottom: 16px; }
 .skeleton-line.meta { height: 11px; width: 38%; margin-bottom: 28px; }
 
+/* ─── Recovery overlay ────────────────────────────
+   Shown when the editor boot hangs or throws (e.g. stale service worker or an
+   OPFS database the current schema can't open), so the user is never stranded
+   on a permanent loading state. */
+.recovery-overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(25, 28, 30, 0.72);
+  z-index: 1000;
+  padding: 24px;
+}
+.recovery-card {
+  background: #1f2325;
+  border: 1px solid #3a3d3f;
+  border-radius: 8px;
+  max-width: 380px;
+  padding: 22px 24px;
+  color: #ccc9c2;
+  font-family: var(--font-body);
+  text-align: center;
+  box-shadow: 0 8px 40px rgba(0,0,0,0.5);
+}
+.recovery-title { font-size: 13pt; font-weight: 600; margin-bottom: 8px; color: #fff; }
+.recovery-hint { font-size: 10pt; line-height: 1.5; color: #9a9690; margin-bottom: 18px; }
+.recovery-actions { display: flex; gap: 10px; justify-content: center; }
+.recovery-actions button {
+  font-family: var(--font-body);
+  font-size: 10pt;
+  padding: 7px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  border: 1px solid #3a3d3f;
+  background: #2a2f31;
+  color: #ccc9c2;
+  transition: border-color 0.15s, background 0.15s;
+}
+.recovery-actions button:hover { border-color: var(--accent); }
+.recovery-reset { color: #f88 !important; border-color: #633 !important; }
+.recovery-reset:hover { background: rgba(200,80,80,0.15) !important; }
+.recovery-reset:disabled { opacity: 0.6; cursor: default; }
+.recovery-warning { font-size: 8.5pt; color: #6f6b66; margin-top: 14px; }
+
 #root {
   height: 100%;
   display: grid;

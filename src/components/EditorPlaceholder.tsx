@@ -1,6 +1,7 @@
 import { readEditorCache } from '../lib/editorCache'
 import SourcePane from './SourcePane'
 import PreviewPane from './PreviewPane'
+import { SlowLoadNotice } from './Recovery'
 
 const noop = () => {}
 
@@ -17,8 +18,16 @@ const noop = () => {}
 export default function EditorPlaceholder() {
   const cache = readEditorCache()
 
-  if (!cache) return <EditorSkeleton />
+  return (
+    <>
+      {cache ? <CachedPlaceholder cache={cache} /> : <EditorSkeleton />}
+      {/* If the boot hangs (stale service worker / OPFS), surface recovery. */}
+      <SlowLoadNotice />
+    </>
+  )
+}
 
+function CachedPlaceholder({ cache }: { cache: NonNullable<ReturnType<typeof readEditorCache>> }) {
   return (
     // @ts-expect-error inert is a valid HTML attribute (React 19) — keeps the
     // placeholder non-focusable so keystrokes can't be lost before hydration.
