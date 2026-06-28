@@ -11,9 +11,29 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,600;1,9..144,300&family=Crimson+Pro:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+  <!-- Static layout frame painted before the JS bundle + style.css load, so the
+       first paint is the editor's shape (not a black/white screen or spinner).
+       It flows seamlessly into the React placeholder, which React mounts in
+       place of #root's contents. No animation — nothing to distract. -->
+  <style>
+    html, body { height: 100%; margin: 0; background: #191c1e; }
+    #initial-loader { display: flex; flex-direction: column; height: 100%; }
+    #initial-loader .il-toolbar { height: 44px; background: #1d6a5e; flex: none; }
+    #initial-loader .il-body { flex: 1; display: flex; min-height: 0; }
+    #initial-loader .il-sidebar { width: 220px; background: #141618; }
+    #initial-loader .il-source { width: 400px; background: #191c1e; }
+    #initial-loader .il-preview { flex: 1; background: #bfbcb4; }
+  </style>
 </head>
 <body>
-  <div id="root"></div>
+  <div id="root"><div id="initial-loader">
+    <div class="il-toolbar"></div>
+    <div class="il-body">
+      <div class="il-sidebar"></div>
+      <div class="il-source"></div>
+      <div class="il-preview"></div>
+    </div>
+  </div></div>
   <script type="module" src="/src/main.tsx"></script>
 </body>
 </html>

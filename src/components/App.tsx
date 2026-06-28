@@ -2,6 +2,7 @@ import { Suspense, useRef, useState } from 'react'
 import { EvoluProvider } from '@evolu/react'
 import { evolu } from '../db/schema'
 import EditorLayout from './EditorLayout'
+import EditorPlaceholder from './EditorPlaceholder'
 import Toolbar from './Toolbar'
 import SettingsModal from './SettingsModal'
 
@@ -24,8 +25,9 @@ export default function App() {
         onOpenSettings={() => setSettingsOpen(true)}
         onSaveSnapshot={handleSaveSnapshot}
       />
-      {/* EditorLayout suspends while Evolu loads — show minimal shell */}
-      <Suspense fallback={<div className="editor-layout" />}>
+      {/* EditorLayout suspends while Evolu/OPFS initialises. Show a populated
+          (cached) or skeleton placeholder instead of an empty editor. */}
+      <Suspense fallback={<EditorPlaceholder />}>
         <EditorLayout
           onSnapshotReady={fn => { saveManualSnapshotRef.current = fn }}
         />

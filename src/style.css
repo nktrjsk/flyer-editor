@@ -13,7 +13,20 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 html, body { height: 100%; overflow: hidden; }
 
-body { font-family: var(--font-body); }
+body { font-family: var(--font-body); background: #191c1e; }
+
+/* ─── Loading skeleton ────────────────────────────
+   Shown by EditorPlaceholder as the Suspense fallback while Evolu/OPFS boots,
+   only on a first-ever visit with no cached editor state. Static (no motion);
+   dark bars on the dark panels, light bars on the white preview page. */
+.skeleton { background: #2a2f31; border-radius: 4px; }
+.skeleton-sidebar-item { height: 28px; margin: 4px 0; }
+.skeleton-field { height: 38px; }
+.skeleton-textarea { flex: 1; margin: 12px 16px; }
+.preview-pane .page .skeleton { background: #e4e1d9; }
+.skeleton-line { height: 11px; margin-bottom: 11px; width: 100%; }
+.skeleton-line.title { height: 28px; width: 65%; margin-bottom: 16px; }
+.skeleton-line.meta { height: 11px; width: 38%; margin-bottom: 28px; }
 
 #root {
   height: 100%;

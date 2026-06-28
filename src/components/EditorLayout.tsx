@@ -1,5 +1,6 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { ConceptMeta, SnapshotContent, Palette } from '../types'
+import { writeEditorCache } from '../lib/editorCache'
 import { useConcepts } from '../hooks/useConcepts'
 import { useActiveConcept } from '../hooks/useActiveConcept'
 import { useAutoSave } from '../hooks/useAutoSave'
@@ -49,6 +50,22 @@ export default function EditorLayout({ onSnapshotReady }: EditorLayoutProps) {
   }
 
   useAutoSave(activeId, meta, markdown, syncedId === activeId)
+
+  // Persist the visible editor state so the next load can paint a populated
+  // placeholder instead of an empty editor. Only cache once local state is
+  // synced to the active concept, so we never store a stale/mismatched flyer.
+  useEffect(() => {
+    if (syncedId !== activeId) return
+    writeEditorCache({
+      activeId,
+      concepts: concepts.map((c: { id: ConceptId; title: string | null }) => ({
+        id: c.id,
+        title: c.title ?? '',
+      })),
+      meta,
+      markdown,
+    })
+  }, [activeId, concepts, meta, markdown, syncedId])
   const { saveAutoSnapshot, saveManualSnapshot } = useSnapshots(activeId, meta, markdown)
 
   // Expose saveManualSnapshot to the parent (App → Toolbar) via callback ref
