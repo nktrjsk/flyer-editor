@@ -5,6 +5,7 @@ import { useConcepts } from '../hooks/useConcepts'
 import { useActiveConcept } from '../hooks/useActiveConcept'
 import { useAutoSave } from '../hooks/useAutoSave'
 import { useSnapshots } from '../hooks/useSnapshots'
+import { useAiBridge } from '../hooks/useAiBridge'
 import { useToast } from './ToastProvider'
 import { useConfirm } from './ConfirmProvider'
 import Sidebar from './Sidebar'
@@ -15,6 +16,24 @@ import type { ConceptId } from '../db/schema'
 
 interface EditorLayoutProps {
   onSnapshotReady?: (saveFn: (label: string | null) => void) => void
+}
+
+/**
+ * Read the live render facts straight from the preview DOM — the same signals
+ * the overflow bar and title auto-fit already compute, surfaced for `get_state`.
+ */
+function readPreviewFacts() {
+  const pane = document.getElementById('preview')
+  if (!pane) return { pages: 0, overflow: false, overflowingPages: [] as number[], titleFitPt: [] as number[] }
+  const pageEls = Array.from(pane.querySelectorAll<HTMLElement>('.page'))
+  const overflowingPages: number[] = []
+  pageEls.forEach((p, i) => { if (p.classList.contains('is-overflowing')) overflowingPages.push(i) })
+  const titleFitPt: number[] = []
+  pane.querySelectorAll<HTMLElement>('.page-title').forEach(el => {
+    const pt = parseFloat(el.style.fontSize)
+    if (!Number.isNaN(pt)) titleFitPt.push(pt)
+  })
+  return { pages: pageEls.length, overflow: overflowingPages.length > 0, overflowingPages, titleFitPt }
 }
 
 export default function EditorLayout({ onSnapshotReady }: EditorLayoutProps) {
@@ -71,6 +90,36 @@ export default function EditorLayout({ onSnapshotReady }: EditorLayoutProps) {
   }, [activeId, concepts, meta, markdown, syncedId])
 
   const { saveAutoSnapshot, saveManualSnapshot } = useSnapshots(activeId, meta, markdown)
+
+  const conceptList = concepts.map((c: { id: ConceptId; title: string | null }) => ({
+    id: c.id as string,
+    title: c.title ?? '',
+  }))
+
+  // AI bridge: read-only tools for now (steps 2–3). Write/switch added later.
+  useAiBridge({
+    get_state: () => {
+      const facts = readPreviewFacts()
+      return {
+        meta: {
+          title: meta.title,
+          org: meta.org,
+          year: meta.year,
+          web: meta.web,
+          fontSize: meta.fontSize,
+          palette: meta.palette,
+        },
+        markdown,
+        pages: facts.pages,
+        overflow: facts.overflow,
+        overflowingPages: facts.overflowingPages,
+        titleFitPt: facts.titleFitPt,
+        palette: meta.palette,
+        hasLogo: !!meta.logo,
+      }
+    },
+    list_concepts: () => conceptList,
+  })
 
   const { showToast } = useToast()
   const { confirm } = useConfirm()
