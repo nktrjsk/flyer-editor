@@ -280,25 +280,63 @@ body { font-family: var(--font-body); background: #191c1e; }
 /* ─── Overflow indicator ──────────────────────────
    .is-overflowing is toggled by PreviewPane when a page's content is
    clipped by the fixed A5 height. Screen-only — hidden when printing. */
+.page.is-overflowing {
+  /* unmistakable red frame around the whole clipped page */
+  outline: 2px solid #c0392b;
+  outline-offset: -2px;
+}
 .page.is-overflowing .page-content {
   /* fade the last clipped lines so the cut is obvious, not abrupt */
-  -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 12mm), transparent);
-          mask-image: linear-gradient(to bottom, #000 calc(100% - 12mm), transparent);
+  -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 14mm), transparent);
+          mask-image: linear-gradient(to bottom, #000 calc(100% - 14mm), transparent);
 }
 .page.is-overflowing::after {
-  content: "⚠ Obsah přesahuje stránku";
+  /* full-width red bar pinned to the page bottom — always visible, not a
+     corner badge — with an explicit disclaimer that content is being lost */
+  content: "⚠ Obsah přesahuje stránku — část textu se nevejde a nevytiskne se";
   position: absolute;
+  left: 0;
   right: 0;
   bottom: 0;
   background: #c0392b;
   color: #fff;
   font-family: var(--font-body);
-  font-size: 8pt;
-  letter-spacing: 0.03em;
-  padding: 2.5px 9px;
-  border-top-left-radius: 4px;
+  font-size: 9pt;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-align: center;
+  padding: 6px 10px;
+  box-shadow: 0 -2px 12px rgba(192, 57, 43, 0.5);
   pointer-events: none;
 }
+
+/* ─── Always-on overflow bar ───────────────────────
+   A full-width bar pinned to the TOP of the preview viewport, shown whenever
+   ANY page overflows. Sticky so it stays at the top regardless of scroll — the
+   per-page bottom bar only appears once you scroll down to the clipped page,
+   this is the persistent "something's wrong here" indicator. */
+.overflow-flag {
+  display: none;
+  position: sticky;
+  /* bleed into the pane's 28px/24px padding so it spans edge-to-edge and
+     pins flush against the very top — the -28px offset cancels the pane's
+     top padding so sticky doesn't strand it below the padding */
+  top: -28px;
+  z-index: 5;
+  align-self: stretch;
+  margin: -28px -24px 4px;
+  background: #c0392b;
+  color: #fff;
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-align: center;
+  padding: 8px 14px;
+  box-shadow: 0 2px 12px rgba(192, 57, 43, 0.45);
+  pointer-events: none;
+}
+.preview-pane.has-overflow .overflow-flag { display: block; }
 
 /* ─── B&W palette override ────────────────────── */
 .page[data-palette="bw"] {
@@ -457,6 +495,8 @@ body { font-family: var(--font-body); background: #191c1e; }
 
   /* Overflow indicator is an on-screen aid only */
   .page.is-overflowing::after { display: none !important; }
+  .page.is-overflowing { outline: none !important; }
+  .overflow-flag { display: none !important; }
   .page.is-overflowing .page-content {
     -webkit-mask-image: none !important;
             mask-image: none !important;
