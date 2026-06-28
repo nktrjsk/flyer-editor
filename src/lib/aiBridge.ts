@@ -9,7 +9,17 @@
  * If the bridge isn't running the app behaves normally — status just stays
  * 'disconnected' and it retries with backoff.
  */
-const PORT = 8787
+// An https page (GitHub Pages) must use wss (mixed-content rule); an http page
+// (local dev) uses plain ws — no cert needed. The bridge listens on both.
+const WSS_PORT = 8787
+const WS_PORT = 8788
+
+function bridgeUrl(token: string): string {
+  const secure = location.protocol === 'https:'
+  const scheme = secure ? 'wss' : 'ws'
+  const port = secure ? WSS_PORT : WS_PORT
+  return `${scheme}://localhost:${port}/?token=${encodeURIComponent(token)}`
+}
 
 export type BridgeStatus = 'disconnected' | 'connecting' | 'connected'
 export type ToolDispatcher = (tool: string, args: Record<string, unknown>) => Promise<unknown> | unknown
@@ -33,6 +43,16 @@ function setStatus(s: BridgeStatus) {
 /** Register the function that handles incoming tool calls. */
 export function setBridgeDispatcher(fn: ToolDispatcher) {
   dispatcher = fn
+}
+
+/**
+ * Dev-only test seam: invoke the registered dispatcher directly, bypassing the
+ * socket. Used by verification when the sandboxed test browser can't reach the
+ * local bridge. Not wired up in production builds.
+ */
+export function devInvoke(tool: string, args: Record<string, unknown>): Promise<unknown> {
+  if (!dispatcher) return Promise.reject(new Error('no dispatcher registered'))
+  return Promise.resolve(dispatcher(tool, args))
 }
 
 export function onBridgeStatus(cb: (s: BridgeStatus) => void): () => void {
@@ -75,7 +95,7 @@ function openSocket() {
 
   let sock: WebSocket
   try {
-    sock = new WebSocket(`wss://localhost:${PORT}/?token=${encodeURIComponent(token)}`)
+    sock = new WebSocket(bridgeUrl(token))
   } catch {
     setStatus('disconnected')
     scheduleReconnect()

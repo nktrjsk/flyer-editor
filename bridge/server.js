@@ -16,6 +16,7 @@
  */
 import fs from 'node:fs'
 import path from 'node:path'
+import http from 'node:http'
 import https from 'node:https'
 import { fileURLToPath } from 'node:url'
 import { WebSocketServer } from 'ws'
@@ -27,7 +28,8 @@ import {
 } from '@modelcontextprotocol/sdk/types.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
-const PORT = Number(process.env.FLYER_BRIDGE_PORT || 8787)
+const WSS_PORT = Number(process.env.FLYER_BRIDGE_PORT || 8787) // secure (https origins)
+const WS_PORT = Number(process.env.FLYER_BRIDGE_WS_PORT || 8788) // plain (http dev origins)
 const CERT_DIR = path.join(__dirname, 'cert')
 const TOKEN_PATH = path.join(__dirname, '.token')
 
@@ -60,43 +62,39 @@ const ALLOWED_ORIGINS = new Set([
   'https://nktrjsk.github.io', // GitHub Pages
 ])
 
-// --- wss relay --------------------------------------------------------------
-const httpsServer = https.createServer({ cert, key })
-
-// Gate at the handshake: unauthorized pages get an HTTP error and never get an
-// open socket at all (cleaner than accepting then closing).
-const wss = new WebSocketServer({
-  server: httpsServer,
-  verifyClient: (info, cb) => {
-    const origin = info.origin || info.req.headers.origin
-    let presented = null
-    try {
-      presented = new URL(info.req.url, 'https://localhost').searchParams.get('token')
-    } catch {
-      /* ignore */
-    }
-    if (!ALLOWED_ORIGINS.has(origin)) {
-      log('reject handshake — origin not allowed:', origin)
-      cb(false, 403, 'origin not allowed')
-      return
-    }
-    if (presented !== token) {
-      log('reject handshake — bad token from', origin)
-      cb(false, 401, 'bad token')
-      return
-    }
-    cb(true)
-  },
-})
-
+// --- relay ------------------------------------------------------------------
 /** The single tab currently claiming the bridge (newest connection wins). */
 let activeTab = null
 /** id -> { resolve, reject, timer } for in-flight tool calls awaiting a reply. */
 const pending = new Map()
 let nextId = 1
 
+// Gate at the handshake: unauthorized pages get an HTTP error and never get an
+// open socket at all (cleaner than accepting then closing). Shared by both the
+// secure (wss, for https/Pages) and plain (ws, for http/dev) listeners.
+function verifyClient(info, cb) {
+  const origin = info.origin || info.req.headers.origin
+  let presented = null
+  try {
+    presented = new URL(info.req.url, 'https://localhost').searchParams.get('token')
+  } catch {
+    /* ignore */
+  }
+  if (!ALLOWED_ORIGINS.has(origin)) {
+    log('reject handshake — origin not allowed:', origin)
+    cb(false, 403, 'origin not allowed')
+    return
+  }
+  if (presented !== token) {
+    log('reject handshake — bad token from', origin)
+    cb(false, 401, 'bad token')
+    return
+  }
+  cb(true)
+}
+
 // Only authorized connections reach here (verifyClient gates the rest).
-wss.on('connection', (ws, req) => {
+function handleConnection(ws, req) {
   const origin = req.headers.origin
   log('tab connected from', origin)
   // Newest connection becomes the active tab; drop the previous one cleanly.
@@ -124,7 +122,19 @@ wss.on('connection', (ws, req) => {
     log('tab disconnected')
   })
   ws.on('error', e => log('ws error:', e.message))
-})
+}
+
+// Secure listener — for https origins (GitHub Pages). Needs the mkcert cert.
+const httpsServer = https.createServer({ cert, key })
+const wssSecure = new WebSocketServer({ server: httpsServer, verifyClient })
+wssSecure.on('connection', handleConnection)
+
+// Plain listener — for http origins (local dev). No cert needed; an http page
+// can't open wss without a trusted cert but ws://localhost is fine. Still gated
+// by the same origin allowlist + token, bound to loopback only.
+const httpServer = http.createServer()
+const wsPlain = new WebSocketServer({ server: httpServer, verifyClient })
+wsPlain.on('connection', handleConnection)
 
 /** Forward a tool call to the active tab and await its reply. */
 function callTab(tool, args, timeoutMs) {
@@ -215,7 +225,7 @@ mcp.setRequestHandler(CallToolRequestSchema, async req => {
   const args = req.params.arguments || {}
   // await_decision blocks on a human; give it a long leash. The tab self-caps
   // at ~5 min and returns { status: "pending" } before this fires.
-  const timeoutMs = name === 'await_decision' ? 320_000 : 30_000
+  const timeoutMs = name === 'await_decision' ? 55_000 : 30_000
   try {
     const result = await callTab(name, args, timeoutMs)
     if (name === 'get_screenshot' && result && result.base64) {
@@ -231,8 +241,11 @@ mcp.setRequestHandler(CallToolRequestSchema, async req => {
 })
 
 // --- boot -------------------------------------------------------------------
-httpsServer.listen(PORT, '127.0.0.1', () => log(`wss relay listening on wss://localhost:${PORT}`))
+httpsServer.listen(WSS_PORT, '127.0.0.1', () => log(`wss relay listening on wss://localhost:${WSS_PORT} (https origins)`))
 httpsServer.on('error', e => { log('FATAL: https server error:', e.message); process.exit(1) })
+
+httpServer.listen(WS_PORT, '127.0.0.1', () => log(`ws relay listening on ws://localhost:${WS_PORT} (http dev origins)`))
+httpServer.on('error', e => { log('FATAL: http server error:', e.message); process.exit(1) })
 
 await mcp.connect(new StdioServerTransport())
 log('MCP server ready on stdio')

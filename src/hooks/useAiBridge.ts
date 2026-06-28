@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   connectBridge,
   disconnectBridge,
+  devInvoke,
   getBridgeStatus,
   onBridgeStatus,
   setBridgeDispatcher,
@@ -36,6 +37,13 @@ export function useAiBridge(handlers: ToolHandlers) {
   }, [])
 
   useEffect(() => onBridgeStatus(setStatus), [])
+
+  // Dev-only: expose a direct dispatcher invoke for verification harnesses.
+  useEffect(() => {
+    if (import.meta.env.DEV) {
+      ;(window as unknown as Record<string, unknown>).__aiInvoke = devInvoke
+    }
+  }, [])
 
   // Auto-connect on mount if the user previously enabled the bridge.
   useEffect(() => {

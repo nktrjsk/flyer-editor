@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import type { ConceptMeta, SnapshotContent, Palette } from '../types'
+import type { ConceptMeta, SnapshotContent, Palette, Proposal, Decision } from '../types'
 import { writeEditorCache } from '../lib/editorCache'
 import { useConcepts } from '../hooks/useConcepts'
 import { useActiveConcept } from '../hooks/useActiveConcept'
@@ -13,6 +13,7 @@ import Sidebar from './Sidebar'
 import SourcePane from './SourcePane'
 import PreviewPane from './PreviewPane'
 import HistoryExplorer from './HistoryExplorer'
+import ProposalReview from './ProposalReview'
 import type { ConceptId } from '../db/schema'
 
 interface EditorLayoutProps {
@@ -97,7 +98,29 @@ export default function EditorLayout({ onSnapshotReady }: EditorLayoutProps) {
     title: c.title ?? '',
   }))
 
-  // AI bridge: read-only tools for now (steps 2–3). Write/switch added later.
+  // --- AI proposal gate ----------------------------------------------------
+  // Every AI write is a staged proposal; one slot at a time (newer replaces an
+  // un-decided one). Accept routes through the SAME single-writer path as a
+  // restore, so AI edits are fully undoable and can't corrupt state.
+  const [pendingProposal, setPendingProposal] = useState<Proposal | null>(null)
+  const proposalRef = useRef<Proposal | null>(null)
+  proposalRef.current = pendingProposal
+
+  // await_decision coordination: a waiter resolves on the user's click; a
+  // decision made before await_decision is called is buffered for the next call.
+  const decisionWaiterRef = useRef<((d: Decision) => void) | null>(null)
+  const bufferedDecisionRef = useRef<Decision | null>(null)
+
+  function settleDecision(d: Decision) {
+    if (decisionWaiterRef.current) {
+      const resolve = decisionWaiterRef.current
+      decisionWaiterRef.current = null
+      resolve(d)
+    } else {
+      bufferedDecisionRef.current = d
+    }
+  }
+
   useAiBridge({
     get_state: () => {
       const facts = readPreviewFacts()
@@ -121,6 +144,41 @@ export default function EditorLayout({ onSnapshotReady }: EditorLayoutProps) {
     },
     list_concepts: () => conceptList,
     get_screenshot: () => captureFlyerPng(),
+    propose_changes: (args: Record<string, unknown>) => {
+      const known = ['markdown', 'title', 'org', 'year', 'web', 'fontSize', 'palette']
+      if (!known.some(k => k in args)) throw new Error('Nebyla zadána žádná změna.')
+      const nextMeta: ConceptMeta = { ...meta }
+      if ('title' in args) nextMeta.title = String(args.title ?? '')
+      if ('org' in args) nextMeta.org = String(args.org ?? '')
+      if ('year' in args) nextMeta.year = String(args.year ?? '')
+      if ('web' in args) nextMeta.web = String(args.web ?? '')
+      if ('fontSize' in args) {
+        const n = Number(args.fontSize)
+        if (!Number.isNaN(n)) nextMeta.fontSize = n
+      }
+      if ('palette' in args) nextMeta.palette = args.palette === 'bw' ? 'bw' : 'color'
+      const nextMarkdown = 'markdown' in args ? String(args.markdown ?? '') : markdown
+      setPendingProposal({ kind: 'edit', target: { meta: nextMeta, markdown: nextMarkdown } })
+      return 'staged'
+    },
+    await_decision: () => {
+      // A decision already made (before this call) is delivered immediately.
+      if (bufferedDecisionRef.current) {
+        const d = bufferedDecisionRef.current
+        bufferedDecisionRef.current = null
+        return d
+      }
+      return new Promise<Decision>(resolve => {
+        decisionWaiterRef.current = resolve
+        // ~5 min cap → tell Claude it's still pending so it can poll again.
+        setTimeout(() => {
+          if (decisionWaiterRef.current === resolve) {
+            decisionWaiterRef.current = null
+            resolve({ status: 'pending' })
+          }
+        }, 45_000) // cap under the MCP client's ~60s request timeout; Claude re-calls
+      })
+    },
   })
 
   const { showToast } = useToast()
@@ -156,6 +214,35 @@ export default function EditorLayout({ onSnapshotReady }: EditorLayoutProps) {
   function handleDelete(id: ConceptId) {
     if (id === activeId) saveAutoSnapshot()
     deleteConcept(id)
+  }
+
+  // Accept an AI proposal — the SAME single-writer path as handleRestore, so it
+  // snapshots first and is fully undoable.
+  function acceptProposal() {
+    const p = proposalRef.current
+    if (!p) return
+    if (p.kind === 'edit') {
+      saveManualSnapshot('Před úpravou od AI')
+      const prevMeta = { ...meta }
+      const prevMarkdown = markdown
+      setMeta(p.target.meta)
+      setMarkdown(p.target.markdown)
+      setPendingProposal(null)
+      settleDecision({ accepted: true })
+      showToast({
+        message: 'Úprava od AI použita.',
+        action: {
+          label: 'Zpět',
+          onClick: () => { setMeta(prevMeta); setMarkdown(prevMarkdown) },
+        },
+      })
+    }
+    // 'switch' handled in step 5
+  }
+
+  function rejectProposal(reason?: string) {
+    setPendingProposal(null)
+    settleDecision({ accepted: false, reason })
   }
 
   async function handleRestore(content: SnapshotContent) {
@@ -224,6 +311,15 @@ export default function EditorLayout({ onSnapshotReady }: EditorLayoutProps) {
         onMarkdownChange={setMarkdown}
       />
       <PreviewPane meta={meta} markdown={markdown} />
+      {pendingProposal && (
+        <ProposalReview
+          proposal={pendingProposal}
+          currentMeta={meta}
+          currentMarkdown={markdown}
+          onAccept={acceptProposal}
+          onReject={rejectProposal}
+        />
+      )}
       {historyExplorerOpen && (
         <HistoryExplorer
           activeId={activeId}

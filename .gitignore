@@ -3,3 +3,7 @@ dist/
 *.zip
 tsconfig.tsbuildinfo
 src/**/*.js
+
+# test/verification artifacts
+.playwright-mcp/
+/proposal-review.png
