@@ -189,8 +189,12 @@ Edit Claude Desktop's config (macOS:
 
 Restart Claude Desktop.
 
-> Both can coexist. Use whichever client you're working in; they spawn their own
-> bridge subprocess and connect to the same tab.
+> You can *register* the bridge in both clients, but only **one bridge process
+> can run at a time** — it owns fixed ports (`8787`/`8788`). Whichever client you
+> use spawns a bridge subprocess; if another bridge is already holding the ports,
+> the new one logs "another flyer-bridge already owns the ports" and exits
+> cleanly (it does **not** start a second relay). So use **one cockpit at a
+> time**: quit/disconnect the other client (or stop its bridge) before switching.
 
 ### In the app
 Open the editor, click **"Připojit k AI"** to claim this tab as the live target.

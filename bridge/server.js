@@ -241,11 +241,29 @@ mcp.setRequestHandler(CallToolRequestSchema, async req => {
 })
 
 // --- boot -------------------------------------------------------------------
-httpsServer.listen(WSS_PORT, '127.0.0.1', () => log(`wss relay listening on wss://localhost:${WSS_PORT} (https origins)`))
-httpsServer.on('error', e => { log('FATAL: https server error:', e.message); process.exit(1) })
+// One bridge owns the fixed ports at a time. A second instance (e.g. spawned by
+// a second Claude client, or `npm start` alongside a client) collides on listen.
+// `ws` forwards that error onto the WebSocketServer instance, so a handler on
+// the http(s) server alone is NOT enough — without one on the WSS it surfaces as
+// an unhandled 'error' event and an ugly stack trace. Handle all four emitters,
+// before listen(). EADDRINUSE just means "another bridge already owns the
+// ports": say so plainly and exit 0 (reuse it), don't crash.
+function onBootError(label, e) {
+  if (e && e.code === 'EADDRINUSE') {
+    log(`Jiný flyer-bridge už drží porty ${WS_PORT}/${WSS_PORT} — používá se ten. Tato instance končí.`)
+    log(`(another flyer-bridge already owns the ports — reusing it; this instance is exiting)`)
+    process.exit(0)
+  }
+  log(`FATAL: ${label} error:`, e && e.message)
+  process.exit(1)
+}
+httpsServer.on('error', e => onBootError('https', e))
+httpServer.on('error', e => onBootError('http', e))
+wssSecure.on('error', e => onBootError('wss', e))
+wsPlain.on('error', e => onBootError('ws', e))
 
+httpsServer.listen(WSS_PORT, '127.0.0.1', () => log(`wss relay listening on wss://localhost:${WSS_PORT} (https origins)`))
 httpServer.listen(WS_PORT, '127.0.0.1', () => log(`ws relay listening on ws://localhost:${WS_PORT} (http dev origins)`))
-httpServer.on('error', e => { log('FATAL: http server error:', e.message); process.exit(1) })
 
 await mcp.connect(new StdioServerTransport())
 log('MCP server ready on stdio')
