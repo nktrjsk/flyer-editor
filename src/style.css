@@ -104,6 +104,61 @@ body { font-family: var(--font-body); background: #191c1e; }
 }
 .toolbar button:hover { background: rgba(255,255,255,0.26); }
 
+/* ── AI connect toolbar control ───────────────────────────── */
+.ai-connect { position: relative; }
+.ai-connect-btn.is-connected {
+  background: rgba(255,255,255,0.30);
+  border-color: rgba(255,255,255,0.55);
+}
+.ai-connect-popover {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 6px);
+  width: 300px;
+  background: #fff;
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 8px 28px rgba(0,0,0,0.28);
+  padding: 12px 14px;
+  z-index: 950;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  text-align: left;
+}
+.ai-connect-row { font-size: 9.5pt; color: var(--muted); }
+.ai-connect-field { display: flex; flex-direction: column; gap: 4px; font-size: 9pt; color: var(--muted); }
+.ai-connect-field code { font-size: 8.5pt; }
+.ai-connect-field input {
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 9pt;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text);
+}
+.ai-connect-actions { display: flex; justify-content: flex-end; gap: 8px; }
+/* override inherited .toolbar button styling inside the (light) popover */
+.ai-connect-popover button {
+  background: #efece6;
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-size: 9.5pt;
+  padding: 6px 14px;
+  border-radius: 4px;
+}
+.ai-connect-popover button:hover { background: #e4e0d8; }
+.ai-connect-popover button.ai-connect-primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+.ai-connect-popover button.ai-connect-primary:hover { background: #17564c; }
+.ai-connect-popover button:disabled { opacity: 0.5; cursor: not-allowed; }
+.ai-connect-hint { font-size: 8.5pt; color: var(--muted); line-height: 1.5; }
+.ai-connect-hint code { font-size: 8pt; background: var(--accent-light); padding: 1px 4px; border-radius: 3px; }
+
 /* ─── Layout ──────────────────────────────────── */
 .editor-layout {
   display: grid;
@@ -1112,5 +1167,109 @@ body { font-family: var(--font-body); background: #191c1e; }
 /* ── Confirm modal ────────────────────────────────────────── */
 .confirm-modal {
   max-width: 380px;
+}
+
+/* ── AI proposal review (floating gate over the preview) ───── */
+.proposal-review {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  width: min(440px, calc(100vw - 32px));
+  max-height: 72vh;
+  display: flex;
+  flex-direction: column;
+  background: #1f2325;
+  border: 1px solid #3a3d3f;
+  border-radius: 8px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+  color: #e8e6e1;
+  font-family: var(--font-body);
+  z-index: 900;
+  overflow: hidden;
+}
+.proposal-review-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 14px;
+  border-bottom: 1px solid #2e3234;
+}
+.proposal-review-badge {
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: #fff;
+  background: var(--accent);
+  border-radius: 4px;
+  padding: 2px 6px;
+}
+.proposal-review-title { font-size: 14px; font-weight: 600; }
+.proposal-review-body {
+  padding: 12px 14px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.proposal-review-switch { font-size: 14px; line-height: 1.5; }
+.proposal-review-empty { font-size: 12px; color: #8a8a8a; font-style: italic; }
+.proposal-review-meta {
+  list-style: none;
+  font-size: 12px;
+  line-height: 1.6;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.proposal-review-meta-label { color: #9a9a9a; }
+.proposal-review-meta-from { color: #e07070; text-decoration: line-through; }
+.proposal-review-meta-to { color: #7ec87e; }
+.proposal-review-footer {
+  padding: 10px 14px;
+  border-top: 1px solid #2e3234;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.proposal-review-reason {
+  background: #141618;
+  border: 1px solid #2e3234;
+  border-radius: 4px;
+  color: #e8e6e1;
+  font-family: var(--font-body);
+  font-size: 12px;
+  padding: 6px 8px;
+}
+.proposal-review-reason::placeholder { color: #6a6a6a; }
+.proposal-review-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.proposal-review-reject,
+.proposal-review-accept {
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: 5px;
+  padding: 7px 16px;
+  cursor: pointer;
+  border: 1px solid transparent;
+}
+.proposal-review-reject {
+  background: transparent;
+  border-color: #3a3d3f;
+  color: #c9c6c1;
+}
+.proposal-review-reject:hover { background: #2a2f31; }
+.proposal-review-accept {
+  background: var(--accent);
+  color: #fff;
+}
+.proposal-review-accept:hover { background: #17564c; }
+.proposal-review-accept:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 

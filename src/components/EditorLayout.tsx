@@ -1,20 +1,41 @@
 import { useEffect, useRef, useState } from 'react'
-import type { ConceptMeta, SnapshotContent, Palette } from '../types'
+import type { ConceptMeta, SnapshotContent, Palette, Proposal, Decision } from '../types'
 import { writeEditorCache } from '../lib/editorCache'
 import { useConcepts } from '../hooks/useConcepts'
 import { useActiveConcept } from '../hooks/useActiveConcept'
 import { useAutoSave } from '../hooks/useAutoSave'
 import { useSnapshots } from '../hooks/useSnapshots'
+import { useAiBridge } from '../hooks/useAiBridge'
+import { captureFlyerPng } from '../lib/flyerScreenshot'
 import { useToast } from './ToastProvider'
 import { useConfirm } from './ConfirmProvider'
 import Sidebar from './Sidebar'
 import SourcePane from './SourcePane'
 import PreviewPane from './PreviewPane'
 import HistoryExplorer from './HistoryExplorer'
+import ProposalReview from './ProposalReview'
 import type { ConceptId } from '../db/schema'
 
 interface EditorLayoutProps {
   onSnapshotReady?: (saveFn: (label: string | null) => void) => void
+}
+
+/**
+ * Read the live render facts straight from the preview DOM — the same signals
+ * the overflow bar and title auto-fit already compute, surfaced for `get_state`.
+ */
+function readPreviewFacts() {
+  const pane = document.getElementById('preview')
+  if (!pane) return { pages: 0, overflow: false, overflowingPages: [] as number[], titleFitPt: [] as number[] }
+  const pageEls = Array.from(pane.querySelectorAll<HTMLElement>('.page'))
+  const overflowingPages: number[] = []
+  pageEls.forEach((p, i) => { if (p.classList.contains('is-overflowing')) overflowingPages.push(i) })
+  const titleFitPt: number[] = []
+  pane.querySelectorAll<HTMLElement>('.page-title').forEach(el => {
+    const pt = parseFloat(el.style.fontSize)
+    if (!Number.isNaN(pt)) titleFitPt.push(pt)
+  })
+  return { pages: pageEls.length, overflow: overflowingPages.length > 0, overflowingPages, titleFitPt }
 }
 
 export default function EditorLayout({ onSnapshotReady }: EditorLayoutProps) {
@@ -72,6 +93,103 @@ export default function EditorLayout({ onSnapshotReady }: EditorLayoutProps) {
 
   const { saveAutoSnapshot, saveManualSnapshot } = useSnapshots(activeId, meta, markdown)
 
+  const conceptList = concepts.map((c: { id: ConceptId; title: string | null }) => ({
+    id: c.id as string,
+    title: c.title ?? '',
+  }))
+
+  // --- AI proposal gate ----------------------------------------------------
+  // Every AI write is a staged proposal; one slot at a time (newer replaces an
+  // un-decided one). Accept routes through the SAME single-writer path as a
+  // restore, so AI edits are fully undoable and can't corrupt state.
+  const [pendingProposal, setPendingProposal] = useState<Proposal | null>(null)
+  const proposalRef = useRef<Proposal | null>(null)
+  proposalRef.current = pendingProposal
+
+  // await_decision coordination: a waiter resolves on the user's click; a
+  // decision made before await_decision is called is buffered for the next call.
+  const decisionWaiterRef = useRef<((d: Decision) => void) | null>(null)
+  const bufferedDecisionRef = useRef<Decision | null>(null)
+
+  function settleDecision(d: Decision) {
+    if (decisionWaiterRef.current) {
+      const resolve = decisionWaiterRef.current
+      decisionWaiterRef.current = null
+      resolve(d)
+    } else {
+      bufferedDecisionRef.current = d
+    }
+  }
+
+  useAiBridge({
+    get_state: () => {
+      const facts = readPreviewFacts()
+      return {
+        meta: {
+          title: meta.title,
+          org: meta.org,
+          year: meta.year,
+          web: meta.web,
+          fontSize: meta.fontSize,
+          palette: meta.palette,
+        },
+        markdown,
+        pages: facts.pages,
+        overflow: facts.overflow,
+        overflowingPages: facts.overflowingPages,
+        titleFitPt: facts.titleFitPt,
+        palette: meta.palette,
+        hasLogo: !!meta.logo,
+      }
+    },
+    list_concepts: () => conceptList,
+    get_screenshot: () => captureFlyerPng(),
+    propose_changes: (args: Record<string, unknown>) => {
+      const known = ['markdown', 'title', 'org', 'year', 'web', 'fontSize', 'palette']
+      if (!known.some(k => k in args)) throw new Error('Nebyla zadána žádná změna.')
+      const nextMeta: ConceptMeta = { ...meta }
+      if ('title' in args) nextMeta.title = String(args.title ?? '')
+      if ('org' in args) nextMeta.org = String(args.org ?? '')
+      if ('year' in args) nextMeta.year = String(args.year ?? '')
+      if ('web' in args) nextMeta.web = String(args.web ?? '')
+      if ('fontSize' in args) {
+        const n = Number(args.fontSize)
+        if (!Number.isNaN(n)) nextMeta.fontSize = n
+      }
+      if ('palette' in args) nextMeta.palette = args.palette === 'bw' ? 'bw' : 'color'
+      const nextMarkdown = 'markdown' in args ? String(args.markdown ?? '') : markdown
+      setPendingProposal({ kind: 'edit', target: { meta: nextMeta, markdown: nextMarkdown } })
+      return 'staged'
+    },
+    switch_concept: (args: Record<string, unknown>) => {
+      const id = String(args.id ?? '')
+      if (!id) throw new Error('Chybí id konceptu.')
+      const target = conceptList.find(c => c.id === id)
+      if (!target) throw new Error('Koncept s tímto id neexistuje. Použij list_concepts.')
+      if (id === activeId) throw new Error('Tento leták je už otevřený.')
+      setPendingProposal({ kind: 'switch', toId: id, toTitle: target.title })
+      return 'staged'
+    },
+    await_decision: () => {
+      // A decision already made (before this call) is delivered immediately.
+      if (bufferedDecisionRef.current) {
+        const d = bufferedDecisionRef.current
+        bufferedDecisionRef.current = null
+        return d
+      }
+      return new Promise<Decision>(resolve => {
+        decisionWaiterRef.current = resolve
+        // ~5 min cap → tell Claude it's still pending so it can poll again.
+        setTimeout(() => {
+          if (decisionWaiterRef.current === resolve) {
+            decisionWaiterRef.current = null
+            resolve({ status: 'pending' })
+          }
+        }, 45_000) // cap under the MCP client's ~60s request timeout; Claude re-calls
+      })
+    },
+  })
+
   const { showToast } = useToast()
   const { confirm } = useConfirm()
 
@@ -105,6 +223,45 @@ export default function EditorLayout({ onSnapshotReady }: EditorLayoutProps) {
   function handleDelete(id: ConceptId) {
     if (id === activeId) saveAutoSnapshot()
     deleteConcept(id)
+  }
+
+  // Accept an AI proposal — the SAME single-writer path as handleRestore, so it
+  // snapshots first and is fully undoable.
+  function acceptProposal() {
+    const p = proposalRef.current
+    if (!p) return
+    if (p.kind === 'edit') {
+      saveManualSnapshot('Před úpravou od AI')
+      const prevMeta = { ...meta }
+      const prevMarkdown = markdown
+      setMeta(p.target.meta)
+      setMarkdown(p.target.markdown)
+      setPendingProposal(null)
+      settleDecision({ accepted: true })
+      showToast({
+        message: 'Úprava od AI použita.',
+        action: {
+          label: 'Zpět',
+          onClick: () => { setMeta(prevMeta); setMarkdown(prevMarkdown) },
+        },
+      })
+    } else if (p.kind === 'switch') {
+      // Snapshot the outgoing concept first, then switch — mirrors handleSelect.
+      const prevId = activeId
+      saveAutoSnapshot()
+      selectConcept(p.toId as ConceptId)
+      setPendingProposal(null)
+      settleDecision({ accepted: true })
+      showToast({
+        message: 'Přepnuto na jiný leták.',
+        ...(prevId ? { action: { label: 'Zpět', onClick: () => selectConcept(prevId) } } : {}),
+      })
+    }
+  }
+
+  function rejectProposal(reason?: string) {
+    setPendingProposal(null)
+    settleDecision({ accepted: false, reason })
   }
 
   async function handleRestore(content: SnapshotContent) {
@@ -173,6 +330,15 @@ export default function EditorLayout({ onSnapshotReady }: EditorLayoutProps) {
         onMarkdownChange={setMarkdown}
       />
       <PreviewPane meta={meta} markdown={markdown} />
+      {pendingProposal && (
+        <ProposalReview
+          proposal={pendingProposal}
+          currentMeta={meta}
+          currentMarkdown={markdown}
+          onAccept={acceptProposal}
+          onReject={rejectProposal}
+        />
+      )}
       {historyExplorerOpen && (
         <HistoryExplorer
           activeId={activeId}

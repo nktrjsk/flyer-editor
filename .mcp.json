@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "flyer": {
+      "command": "node",
+      "args": ["bridge/server.js"]
+    }
+  }
+}

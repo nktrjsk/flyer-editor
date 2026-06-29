@@ -24,6 +24,17 @@ export interface ConceptMeta {
   palette: Palette
 }
 
+/** A staged AI proposal awaiting the user's Accept/Reject. One slot at a time. */
+export type Proposal =
+  | { kind: 'edit'; target: { meta: ConceptMeta; markdown: string } }
+  | { kind: 'switch'; toId: string; toTitle: string }
+
+/** Resolved result of await_decision. */
+export type Decision =
+  | { accepted: true }
+  | { accepted: false; reason?: string }
+  | { status: 'pending' }
+
 export const DEFAULT_META: ConceptMeta = {
   title: 'Znakový jazyk',
   org: 'Samostuduj',

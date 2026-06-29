@@ -9,6 +9,7 @@
   "dependencies": {
     "@evolu/react": "latest",
     "@evolu/react-web": "^2.4.0",
+    "html2canvas": "^1.4.1",
     "marked": "^12.0.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
