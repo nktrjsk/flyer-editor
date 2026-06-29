@@ -1,25 +1,24 @@
 #!/usr/bin/env node
 /**
- * flyer-bridge — local MCP server + wss relay.
+ * flyer-bridge (MCP shim) — the per-client half of the bridge.
  *
- * Two faces, one process:
- *   1. MCP server over stdio  → talks to Claude (Desktop / Code).
- *   2. wss relay server       → the editor tab dials in over wss://localhost.
+ * Claude (Desktop / Code) spawns ONE of these over stdio per client. It does
+ * NOT own any port: it ensures the singleton relay (relay.js) is running —
+ * spawning it detached if needed — and forwards every MCP tool call to it over
+ * a local unix socket. The relay forwards to the editor tab and routes the
+ * reply back here.
  *
- * It is a DUMB RELAY: each MCP tool call is forwarded verbatim to the active
- * tab as {id, tool, args}; the tab replies {id, result} | {id, error}. All real
- * logic (diffing, gating, snapshots) lives in the app.
- *
- * NEVER deployed. Runs locally, per device. See ../docs/ai-bridge.md.
+ * Why split: the old design made this same process also bind the relay ports.
+ * A second client then hit EADDRINUSE and exit()ed, taking its own MCP tools
+ * down with it. A shim can't collide with anything, so every client always
+ * gets working tools. See relay.js + ../docs/ai-bridge.md.
  *
  * IMPORTANT: stdout is the MCP JSON-RPC channel. All logging goes to stderr.
  */
-import fs from 'node:fs'
+import net from 'node:net'
 import path from 'node:path'
-import http from 'node:http'
-import https from 'node:https'
+import { spawn } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
-import { WebSocketServer } from 'ws'
 import { Server } from '@modelcontextprotocol/sdk/server/index.js'
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import {
@@ -28,132 +27,114 @@ import {
 } from '@modelcontextprotocol/sdk/types.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
-const WSS_PORT = Number(process.env.FLYER_BRIDGE_PORT || 8787) // secure (https origins)
-const WS_PORT = Number(process.env.FLYER_BRIDGE_WS_PORT || 8788) // plain (http dev origins)
-const CERT_DIR = path.join(__dirname, 'cert')
-const TOKEN_PATH = path.join(__dirname, '.token')
+const WSS_PORT = Number(process.env.FLYER_BRIDGE_PORT || 8787)
+const SOCK_PATH = path.join(__dirname, `.relay-${WSS_PORT}.sock`)
+const RELAY_PATH = path.join(__dirname, 'relay.js')
 
-// stdout belongs to MCP — log only to stderr.
 const log = (...a) => process.stderr.write('[flyer-bridge] ' + a.join(' ') + '\n')
 
-// --- load cert + token (fatal if missing) ----------------------------------
-let cert, key, token
-try {
-  cert = fs.readFileSync(path.join(CERT_DIR, 'localhost.pem'))
-  key = fs.readFileSync(path.join(CERT_DIR, 'localhost-key.pem'))
-} catch {
-  log('FATAL: cert not found in bridge/cert/. Run:  npm run setup')
-  process.exit(1)
-}
-try {
-  token = fs.readFileSync(TOKEN_PATH, 'utf8').trim()
-  if (!token) throw new Error('empty')
-} catch {
-  log('FATAL: bridge/.token missing or empty. Run:  npm run setup')
-  process.exit(1)
+// --- control connection to the relay ----------------------------------------
+let conn = null
+let buf = ''
+let nextRid = 1
+const pending = new Map() // rid -> { resolve, timer }
+
+function failAllPending(reason) {
+  for (const [rid, p] of [...pending]) {
+    pending.delete(rid)
+    clearTimeout(p.timer)
+    p.resolve({ ok: false, error: reason })
+  }
 }
 
-// --- origin allowlist -------------------------------------------------------
-// Only these pages may drive the bridge. Derived from the repo's deploy target
-// (https://nktrjsk.github.io/flyer-editor/) plus local dev/preview.
-const ALLOWED_ORIGINS = new Set([
-  'http://localhost:5173', // vite dev
-  'http://localhost:4173', // vite preview
-  'https://nktrjsk.github.io', // GitHub Pages
-])
-
-// --- relay ------------------------------------------------------------------
-/** The single tab currently claiming the bridge (newest connection wins). */
-let activeTab = null
-/** id -> { resolve, reject, timer } for in-flight tool calls awaiting a reply. */
-const pending = new Map()
-let nextId = 1
-
-// Gate at the handshake: unauthorized pages get an HTTP error and never get an
-// open socket at all (cleaner than accepting then closing). Shared by both the
-// secure (wss, for https/Pages) and plain (ws, for http/dev) listeners.
-function verifyClient(info, cb) {
-  const origin = info.origin || info.req.headers.origin
-  let presented = null
-  try {
-    presented = new URL(info.req.url, 'https://localhost').searchParams.get('token')
-  } catch {
-    /* ignore */
-  }
-  if (!ALLOWED_ORIGINS.has(origin)) {
-    log('reject handshake — origin not allowed:', origin)
-    cb(false, 403, 'origin not allowed')
-    return
-  }
-  if (presented !== token) {
-    log('reject handshake — bad token from', origin)
-    cb(false, 401, 'bad token')
-    return
-  }
-  cb(true)
-}
-
-// Only authorized connections reach here (verifyClient gates the rest).
-function handleConnection(ws, req) {
-  const origin = req.headers.origin
-  log('tab connected from', origin)
-  // Newest connection becomes the active tab; drop the previous one cleanly.
-  if (activeTab && activeTab !== ws && activeTab.readyState === activeTab.OPEN) {
-    log('replacing previous active tab')
-    try { activeTab.close(4003, 'replaced by newer tab') } catch { /* ignore */ }
-  }
-  activeTab = ws
-
-  ws.on('message', data => {
-    let msg
-    try { msg = JSON.parse(data.toString()) } catch { return }
-    if (msg.type === 'hello') { log('tab hello'); return }
-    if (msg.id != null && pending.has(msg.id)) {
-      const p = pending.get(msg.id)
-      pending.delete(msg.id)
-      clearTimeout(p.timer)
-      if (msg.error) p.reject(new Error(String(msg.error)))
-      else p.resolve(msg.result)
+function attach(sock) {
+  conn = sock
+  buf = ''
+  sock.on('data', chunk => {
+    buf += chunk.toString()
+    let nl
+    while ((nl = buf.indexOf('\n')) >= 0) {
+      const line = buf.slice(0, nl)
+      buf = buf.slice(nl + 1)
+      if (!line) continue
+      let msg
+      try { msg = JSON.parse(line) } catch { continue }
+      if (msg.t === 'reply' && pending.has(msg.rid)) {
+        const p = pending.get(msg.rid)
+        pending.delete(msg.rid)
+        clearTimeout(p.timer)
+        p.resolve(msg)
+      }
     }
   })
-
-  ws.on('close', () => {
-    if (activeTab === ws) activeTab = null
-    log('tab disconnected')
-  })
-  ws.on('error', e => log('ws error:', e.message))
+  sock.on('close', () => { if (conn === sock) conn = null; failAllPending('Spojení s relayem se přerušilo.') })
+  sock.on('error', () => { /* close follows */ })
 }
 
-// Secure listener — for https origins (GitHub Pages). Needs the mkcert cert.
-const httpsServer = https.createServer({ cert, key })
-const wssSecure = new WebSocketServer({ server: httpsServer, verifyClient })
-wssSecure.on('connection', handleConnection)
+function tryConnect() {
+  return new Promise(resolve => {
+    const sock = net.connect(SOCK_PATH)
+    sock.once('connect', () => { attach(sock); resolve(true) })
+    sock.once('error', () => resolve(false))
+  })
+}
 
-// Plain listener — for http origins (local dev). No cert needed; an http page
-// can't open wss without a trusted cert but ws://localhost is fine. Still gated
-// by the same origin allowlist + token, bound to loopback only.
-const httpServer = http.createServer()
-const wsPlain = new WebSocketServer({ server: httpServer, verifyClient })
-wsPlain.on('connection', handleConnection)
+let lastSpawn = 0
+function spawnDaemon() {
+  // Allow respawning a daemon that has died, but don't fire on every failed
+  // retry during one outage — a 3s cooldown is plenty. Extra daemons are
+  // harmless: the loser EADDRINUSE-exits.
+  const now = Date.now()
+  if (now - lastSpawn < 3000) return
+  lastSpawn = now
+  log('starting relay daemon')
+  const child = spawn(process.execPath, [RELAY_PATH], {
+    detached: true,
+    stdio: 'ignore',
+    cwd: __dirname,
+    env: process.env, // pass FLYER_BRIDGE_PORT etc. through to the daemon
+  })
+  child.unref()
+}
 
-/** Forward a tool call to the active tab and await its reply. */
-function callTab(tool, args, timeoutMs) {
-  return new Promise((resolve, reject) => {
-    if (!activeTab || activeTab.readyState !== activeTab.OPEN) {
-      reject(new Error('Žádná připojená záložka editoru. Otevři editor a klikni „Připojit k AI".'))
-      return
-    }
-    const id = nextId++
+const sleep = ms => new Promise(r => setTimeout(r, ms))
+
+/** Ensure we have a live control connection; spawn the daemon if none exists. */
+async function ensureConn() {
+  if (conn && !conn.destroyed) return true
+  if (await tryConnect()) return true
+  spawnDaemon()
+  for (let i = 0; i < 40; i++) { // ~6s of 150ms tries
+    await sleep(150)
+    if (await tryConnect()) return true
+  }
+  log('could not reach relay daemon')
+  return false
+}
+
+/** Forward one tool call to the relay; resolves to { ok, result|error }. */
+async function callRelay(tool, args, timeoutMs) {
+  if (!(await ensureConn())) {
+    return { ok: false, error: 'Nepodařilo se spustit/oslovit relay (zkontroluj bridge/.relay-*.log).' }
+  }
+  const rid = nextRid++
+  return new Promise(resolve => {
     const timer = setTimeout(() => {
-      pending.delete(id)
-      reject(new Error(`Časový limit vypršel u nástroje „${tool}".`))
-    }, timeoutMs)
-    pending.set(id, { resolve, reject, timer })
-    activeTab.send(JSON.stringify({ id, tool, args }))
+      pending.delete(rid)
+      resolve({ ok: false, error: `Časový limit u nástroje „${tool}".` })
+    }, timeoutMs + 5_000) // safety net beyond the relay's own per-call timeout
+    pending.set(rid, { resolve, timer })
+    try {
+      conn.write(JSON.stringify({ t: 'call', rid, tool, args, timeoutMs }) + '\n')
+    } catch (e) {
+      pending.delete(rid)
+      clearTimeout(timer)
+      resolve({ ok: false, error: 'Zápis do relaye selhal: ' + e.message })
+    }
   })
 }
 
-// --- MCP server -------------------------------------------------------------
+// --- MCP tool surface (unchanged) -------------------------------------------
 const TOOLS = [
   {
     name: 'get_state',
@@ -194,6 +175,26 @@ const TOOLS = [
     },
   },
   {
+    name: 'create_concept',
+    description:
+      'Navrhne vytvoření NOVÉHO letáku (konceptu) s volitelným obsahem a metadaty. ' +
+      'NEVYTVÁŘÍ přímo — uživatel potvrdí v editoru; po potvrzení se nový leták rovnou otevře. ' +
+      'Vrať jen pole, která chceš nastavit; nezadaná zůstanou prázdná (rok = aktuální, písmo 9.5, barevně).',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        markdown: { type: 'string', description: 'Markdown těla nového letáku.' },
+        title: { type: 'string' },
+        org: { type: 'string' },
+        year: { type: 'string' },
+        web: { type: 'string' },
+        fontSize: { type: 'number', description: 'Velikost písma v pt (např. 9.5).' },
+        palette: { type: 'string', enum: ['color', 'bw'], description: 'Barevně nebo černobíle.' },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
     name: 'switch_concept',
     description:
       'Navrhne přepnutí na jiný leták (koncept) podle id. NEPŘEPÍNÁ přímo — uživatel potvrdí.',
@@ -214,7 +215,7 @@ const TOOLS = [
 ]
 
 const mcp = new Server(
-  { name: 'flyer', version: '0.1.0' },
+  { name: 'flyer', version: '0.2.0' },
   { capabilities: { tools: {} } },
 )
 
@@ -226,44 +227,24 @@ mcp.setRequestHandler(CallToolRequestSchema, async req => {
   // await_decision blocks on a human; give it a long leash. The tab self-caps
   // at ~5 min and returns { status: "pending" } before this fires.
   const timeoutMs = name === 'await_decision' ? 55_000 : 30_000
-  try {
-    const result = await callTab(name, args, timeoutMs)
-    if (name === 'get_screenshot' && result && result.base64) {
-      return {
-        content: [{ type: 'image', data: result.base64, mimeType: result.mimeType || 'image/png' }],
-      }
-    }
-    const text = typeof result === 'string' ? result : JSON.stringify(result, null, 2)
-    return { content: [{ type: 'text', text }] }
-  } catch (e) {
-    return { content: [{ type: 'text', text: 'Chyba: ' + e.message }], isError: true }
+  const reply = await callRelay(name, args, timeoutMs)
+  if (!reply.ok) {
+    return { content: [{ type: 'text', text: 'Chyba: ' + reply.error }], isError: true }
   }
+  const result = reply.result
+  if (name === 'get_screenshot' && result && result.base64) {
+    return {
+      content: [{ type: 'image', data: result.base64, mimeType: result.mimeType || 'image/png' }],
+    }
+  }
+  const text = typeof result === 'string' ? result : JSON.stringify(result, null, 2)
+  return { content: [{ type: 'text', text }] }
 })
 
 // --- boot -------------------------------------------------------------------
-// One bridge owns the fixed ports at a time. A second instance (e.g. spawned by
-// a second Claude client, or `npm start` alongside a client) collides on listen.
-// `ws` forwards that error onto the WebSocketServer instance, so a handler on
-// the http(s) server alone is NOT enough — without one on the WSS it surfaces as
-// an unhandled 'error' event and an ugly stack trace. Handle all four emitters,
-// before listen(). EADDRINUSE just means "another bridge already owns the
-// ports": say so plainly and exit 0 (reuse it), don't crash.
-function onBootError(label, e) {
-  if (e && e.code === 'EADDRINUSE') {
-    log(`Jiný flyer-bridge už drží porty ${WS_PORT}/${WSS_PORT} — používá se ten. Tato instance končí.`)
-    log(`(another flyer-bridge already owns the ports — reusing it; this instance is exiting)`)
-    process.exit(0)
-  }
-  log(`FATAL: ${label} error:`, e && e.message)
-  process.exit(1)
-}
-httpsServer.on('error', e => onBootError('https', e))
-httpServer.on('error', e => onBootError('http', e))
-wssSecure.on('error', e => onBootError('wss', e))
-wsPlain.on('error', e => onBootError('ws', e))
-
-httpsServer.listen(WSS_PORT, '127.0.0.1', () => log(`wss relay listening on wss://localhost:${WSS_PORT} (https origins)`))
-httpServer.listen(WS_PORT, '127.0.0.1', () => log(`ws relay listening on ws://localhost:${WS_PORT} (http dev origins)`))
-
+// Bring the daemon up first so the tab has something to dial before we announce
+// tools — then connect the MCP stdio channel. Daemon trouble is non-fatal: tools
+// still list and calls return a clear error.
+await ensureConn().catch(() => {})
 await mcp.connect(new StdioServerTransport())
-log('MCP server ready on stdio')
+log('MCP shim ready on stdio')

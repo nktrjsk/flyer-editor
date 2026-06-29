@@ -58,8 +58,8 @@ async function main() {
   // 1. tools enumerate
   const { tools } = await client.listTools()
   const names = tools.map(t => t.name).sort()
-  ok(tools.length === 6, `listTools returns 6 tools (${tools.length})`)
-  ok(['await_decision', 'get_screenshot', 'get_state', 'list_concepts', 'propose_changes', 'switch_concept'].every(n => names.includes(n)),
+  ok(tools.length === 7, `listTools returns 7 tools (${tools.length})`)
+  ok(['await_decision', 'create_concept', 'get_screenshot', 'get_state', 'list_concepts', 'propose_changes', 'switch_concept'].every(n => names.includes(n)),
     `tool names complete: ${names.join(', ')}`)
 
   // 2. no tab connected → tool call returns a friendly error
@@ -78,6 +78,11 @@ async function main() {
   const res2 = await client.callTool({ name: 'propose_changes', arguments: { title: 'Hello' } })
   const payload2 = JSON.parse(res2.content[0].text)
   ok(payload2.args.title === 'Hello', 'propose_changes args relayed intact')
+
+  const res3 = await client.callTool({ name: 'create_concept', arguments: { title: 'Nový', markdown: '## Ahoj' } })
+  const payload3 = JSON.parse(res3.content[0].text)
+  ok(payload3.echo === 'create_concept' && payload3.args.title === 'Nový' && payload3.args.markdown === '## Ahoj',
+    'create_concept args relayed intact')
 
   // The gate rejects at the handshake (HTTP 401/403) — the socket must never open.
   const expectRejected = (url, origin) => new Promise(resolve => {

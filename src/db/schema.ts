@@ -39,7 +39,13 @@ const Schema = {
     logo: nullOr(EvoluString),       // legacy: base64 data URL or null
     logoId: nullOr(ConceptLogoId),   // preferred: reference to conceptLogo row
     palette: nullOr(EvoluString),    // 'color' | 'bw' — null treated as 'color'
+    reviewStatus: nullOr(EvoluString), // 'review' = flagged for review; null = none
     markdown: EvoluString,
+    // Stable publish identity, generated on first publish, decoupled from the
+    // Evolu row id (which is regenerated on a fresh DB). It keys the repo folder
+    // (`flyers/<publishId>/`) and the version lineage in frontmatter, so a
+    // wipe-and-reimport re-attaches to the same lineage instead of forking it.
+    publishId: nullOr(EvoluString),
   },
   conceptSnapshot: {
     id: ConceptSnapshotId,
@@ -79,9 +85,17 @@ export const useEvolu = createUseEvolu(evolu)
 export const allConceptsQuery = evolu.createQuery(db =>
   db
     .selectFrom('concept')
-    .select(['id', 'title', 'createdAt'])
+    .select(['id', 'title', 'reviewStatus', 'createdAt'])
     .where('isDeleted', 'is not', sqliteTrue)
     .orderBy('createdAt', 'desc'),
+)
+
+/** id + publishId for every live concept — used to dedup on import-from-repo */
+export const allConceptPublishIdsQuery = evolu.createQuery(db =>
+  db
+    .selectFrom('concept')
+    .select(['id', 'publishId'])
+    .where('isDeleted', 'is not', sqliteTrue),
 )
 
 /** Full concept row + joined logo data */

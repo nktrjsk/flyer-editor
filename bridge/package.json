@@ -9,6 +9,7 @@
   },
   "scripts": {
     "start": "node server.js",
+    "relay": "node relay.js",
     "setup": "node setup.js"
   },
   "dependencies": {

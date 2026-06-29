@@ -7,6 +7,8 @@ import { useAutoSave } from '../hooks/useAutoSave'
 import { useSnapshots } from '../hooks/useSnapshots'
 import { useAiBridge } from '../hooks/useAiBridge'
 import { captureFlyerPng } from '../lib/flyerScreenshot'
+import { loadPublishConfig, isConfigured, newPublishId, publishConcept } from '../lib/githubPublish'
+import { useEvolu } from '../db/schema'
 import { useToast } from './ToastProvider'
 import { useConfirm } from './ConfirmProvider'
 import Sidebar from './Sidebar'
@@ -18,6 +20,7 @@ import type { ConceptId } from '../db/schema'
 
 interface EditorLayoutProps {
   onSnapshotReady?: (saveFn: (label: string | null) => void) => void
+  onPublishReady?: (publishFn: () => void) => void
 }
 
 /**
@@ -38,8 +41,9 @@ function readPreviewFacts() {
   return { pages: pageEls.length, overflow: overflowingPages.length > 0, overflowingPages, titleFitPt }
 }
 
-export default function EditorLayout({ onSnapshotReady }: EditorLayoutProps) {
+export default function EditorLayout({ onSnapshotReady, onPublishReady }: EditorLayoutProps) {
   const concepts = useConcepts()
+  const { update } = useEvolu()
   const {
     activeId,
     activeRow,
@@ -161,6 +165,26 @@ export default function EditorLayout({ onSnapshotReady }: EditorLayoutProps) {
       setPendingProposal({ kind: 'edit', target: { meta: nextMeta, markdown: nextMarkdown } })
       return 'staged'
     },
+    create_concept: (args: Record<string, unknown>) => {
+      // Build a fresh blank concept, then layer on whatever the AI specified.
+      // Unspecified fields stay blank (year = current, fontSize 9.5, color).
+      const nextMeta: ConceptMeta = {
+        title: '', org: '', year: String(new Date().getFullYear()),
+        web: '', fontSize: 9.5, logo: '', logoId: null, palette: 'color',
+      }
+      if ('title' in args) nextMeta.title = String(args.title ?? '')
+      if ('org' in args) nextMeta.org = String(args.org ?? '')
+      if ('year' in args) nextMeta.year = String(args.year ?? '')
+      if ('web' in args) nextMeta.web = String(args.web ?? '')
+      if ('fontSize' in args) {
+        const n = Number(args.fontSize)
+        if (!Number.isNaN(n)) nextMeta.fontSize = n
+      }
+      if ('palette' in args) nextMeta.palette = args.palette === 'bw' ? 'bw' : 'color'
+      const nextMarkdown = 'markdown' in args ? String(args.markdown ?? '') : ''
+      setPendingProposal({ kind: 'create', target: { meta: nextMeta, markdown: nextMarkdown } })
+      return 'staged'
+    },
     switch_concept: (args: Record<string, unknown>) => {
       const id = String(args.id ?? '')
       if (!id) throw new Error('Chybí id konceptu.')
@@ -201,6 +225,10 @@ export default function EditorLayout({ onSnapshotReady }: EditorLayoutProps) {
   // Call once when the function becomes available; App stores it in a ref
   if (onSnapshotReadyRef.current) onSnapshotReadyRef.current(saveManualSnapshot)
 
+  const onPublishReadyRef = useRef(onPublishReady)
+  onPublishReadyRef.current = onPublishReady
+  if (onPublishReadyRef.current) onPublishReadyRef.current(handlePublish)
+
   function handleMetaChange(patch: Partial<ConceptMeta>) {
     setMeta(prev => ({ ...prev, ...patch }))
   }
@@ -223,6 +251,12 @@ export default function EditorLayout({ onSnapshotReady }: EditorLayoutProps) {
   function handleDelete(id: ConceptId) {
     if (id === activeId) saveAutoSnapshot()
     deleteConcept(id)
+  }
+
+  // Flag/unflag a concept "for review" — an editorial state, kept out of the
+  // printed flyer. Persists straight to the row (no snapshot; it's metadata).
+  function handleToggleReview(id: ConceptId, current: string | null) {
+    update('concept', { id, reviewStatus: current === 'review' ? null : 'review' })
   }
 
   // Accept an AI proposal — the SAME single-writer path as handleRestore, so it
@@ -255,6 +289,33 @@ export default function EditorLayout({ onSnapshotReady }: EditorLayoutProps) {
       showToast({
         message: 'Přepnuto na jiný leták.',
         ...(prevId ? { action: { label: 'Zpět', onClick: () => selectConcept(prevId) } } : {}),
+      })
+    } else if (p.kind === 'create') {
+      // Snapshot the outgoing concept first (mirrors handleSelect), then create
+      // the new one populated with the proposed content and switch to it.
+      const prevId = activeId
+      saveAutoSnapshot()
+      const newId = createConcept({
+        title:    p.target.meta.title,
+        org:      p.target.meta.org,
+        year:     p.target.meta.year,
+        web:      p.target.meta.web,
+        fontSize: p.target.meta.fontSize,
+        palette:  p.target.meta.palette,
+        markdown: p.target.markdown,
+      })
+      setPendingProposal(null)
+      settleDecision({ accepted: true })
+      showToast({
+        message: 'Nový leták vytvořen.',
+        // Undo = drop the new concept and go back to where we were.
+        action: {
+          label: 'Zpět',
+          onClick: () => {
+            if (prevId) selectConcept(prevId)
+            if (newId) deleteConcept(newId)
+          },
+        },
       })
     }
   }
@@ -311,14 +372,56 @@ export default function EditorLayout({ onSnapshotReady }: EditorLayoutProps) {
     // useAutoSave picks up the state change and persists within 500 ms
   }
 
+  // Publish the active concept as a new versioned Markdown file in the archive
+  // repo. Generates a stable publishId on first publish and persists it to the
+  // concept row so future publishes append to the same version lineage.
+  async function handlePublish() {
+    const cfg = loadPublishConfig()
+    if (!isConfigured(cfg)) {
+      showToast({ message: 'Nejdřív nastavte GitHub repozitář v ⚙ Nastavení.' })
+      return
+    }
+    if (!activeId) return
+
+    const ok = await confirm({
+      title: 'Publikovat leták?',
+      message: `Uloží novou verzi do ${cfg.owner}/${cfg.repo}.`,
+      confirmLabel: 'Publikovat',
+      cancelLabel: 'Zrušit',
+    })
+    if (!ok) return
+
+    let publishId = (activeRow?.publishId as string | null) ?? null
+    if (!publishId) {
+      publishId = newPublishId()
+      update('concept', { id: activeId, publishId })
+    }
+
+    try {
+      const res = await publishConcept(cfg, { publishId, meta, markdown })
+      showToast({
+        message: `Publikováno jako v${res.version}.`,
+        action: { label: 'Otevřít', onClick: () => window.open(res.url, '_blank', 'noopener') },
+      })
+    } catch (e) {
+      showToast({
+        message: `Publikování selhalo: ${e instanceof Error ? e.message : String(e)}`,
+        durationMs: 8000,
+      })
+    }
+  }
+
   return (
     <div className="editor-layout">
       <Sidebar
-        concepts={concepts.map((c: { id: ConceptId; title: string | null }) => ({ id: c.id, title: c.title ?? '' }))}
+        concepts={concepts.map((c: { id: ConceptId; title: string | null; reviewStatus: string | null }) => ({
+          id: c.id, title: c.title ?? '', reviewStatus: c.reviewStatus,
+        }))}
         activeId={activeId}
         onSelect={id => handleSelect(id as ConceptId)}
-        onNew={createConcept}
+        onNew={() => createConcept()}
         onDelete={id => handleDelete(id as ConceptId)}
+        onToggleReview={(id, current) => handleToggleReview(id as ConceptId, current)}
         onRestore={handleRestore}
         onBrowse={() => setHistoryExplorerOpen(true)}
       />

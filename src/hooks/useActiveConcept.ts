@@ -75,22 +75,42 @@ export function useActiveConcept(
     window.dispatchEvent(new StorageEvent('storage'))
   }
 
-  function createConcept() {
+  /**
+   * Create a new concept and make it active. Optionally seed it with initial
+   * content/metadata — used by the AI bridge's gated `create_concept` proposal
+   * so Claude can spin up a fully-populated flyer in one accepted step. Returns
+   * the new concept's id (or null if the insert failed).
+   */
+  function createConcept(init?: {
+    title?: string
+    org?: string
+    year?: string
+    web?: string
+    fontSize?: number
+    palette?: Palette
+    markdown?: string
+    logo?: string | null
+    logoId?: ConceptLogoId | null
+  }): ConceptId | null {
     const result = insert('concept', {
-      title:    '',
-      org:      '',
-      year:     String(new Date().getFullYear()),
-      web:      '',
-      fontSize: 9.5,
-      logo:     null,
-      logoId:   null,
-      palette:  'color',
-      markdown: '',
+      title:    init?.title    ?? '',
+      org:      init?.org      ?? '',
+      year:     init?.year     ?? String(new Date().getFullYear()),
+      web:      init?.web      ?? '',
+      fontSize: init?.fontSize ?? 9.5,
+      logo:     init?.logo     ?? null,
+      logoId:   init?.logoId   ?? null,
+      palette:  init?.palette  ?? 'color',
+      markdown: init?.markdown ?? '',
+      publishId: null,
     })
     if (result.ok) {
-      setActiveId(result.value.id as ConceptId)
+      const id = result.value.id as ConceptId
+      setActiveId(id)
       window.dispatchEvent(new StorageEvent('storage'))
+      return id
     }
+    return null
   }
 
   function deleteConcept(id: ConceptId) {

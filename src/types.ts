@@ -28,6 +28,7 @@ export interface ConceptMeta {
 export type Proposal =
   | { kind: 'edit'; target: { meta: ConceptMeta; markdown: string } }
   | { kind: 'switch'; toId: string; toTitle: string }
+  | { kind: 'create'; target: { meta: ConceptMeta; markdown: string } }
 
 /** Resolved result of await_decision. */
 export type Decision =

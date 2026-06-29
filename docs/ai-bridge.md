@@ -20,22 +20,32 @@ Nothing about the bridge ever reaches GitHub Pages — see *Deploy isolation*.
 
 ## Architecture
 
+The bridge is **two processes**, split so multiple Claude clients can never
+contend for the relay ports (the original single-process design made a second
+client `EADDRINUSE`-exit, killing its own MCP tools):
+
 ```
-┌─────────────────────────┐         stdio          ┌──────────────────────┐
-│ Claude Desktop / Code    │ ─────────────────────► │  bridge/server.js     │
-│ (your cockpit)           │   MCP tool calls       │  (local Node process) │
-└─────────────────────────┘                         │                       │
-                                                     │  • MCP server (stdio) │
-┌─────────────────────────┐   wss://localhost:PORT  │  • wss relay server   │
-│ editor tab (GitHub Pages │ ◄────────────────────► │  • origin + token gate│
-│ or localhost dev)        │   framed {id,tool,args} │  • 1 active tab        │
-│  window bridge client    │   replies {id,result}   └──────────────────────┘
-└─────────────────────────┘
+┌──────────────────────┐  stdio   ┌─────────────────────┐
+│ Claude Desktop / Code │ ───────► │ bridge/server.js    │ ── one SHIM per client
+│ (your cockpit)        │  MCP     │ (MCP face, no ports) │     (binds nothing)
+└──────────────────────┘          └─────────┬───────────┘
+                                   unix sock │ {t:'call'|'reply'}
+                                             ▼
+┌─────────────────────────┐  wss/ws  ┌─────────────────────┐
+│ editor tab (Pages or dev)│ ◄──────► │ bridge/relay.js     │ ── singleton DAEMON
+│  window bridge client    │ {id,tool}│ • owns 8787/8788     │   (auto-spawned,
+└─────────────────────────┘ {id,res} │ • owns the 1 tab     │    shared, self-exits
+                                      │ • origin + token gate│    when idle)
+                                      └─────────────────────┘
 ```
 
-The bridge is a **dumb relay**: it forwards each MCP tool call to the active tab
-and returns the tab's reply. All the real logic (diffing, gating, snapshots)
-lives in the app, where it already exists.
+N clients → N shims → 1 daemon → 1 tab. The shim ensures the daemon is running
+(spawning it detached if needed) and forwards calls; the daemon self-exits ~30 s
+after the last shim disconnects, so a stale daemon from older code can't linger.
+
+The bridge is still a **dumb relay**: it forwards each MCP tool call to the
+active tab and returns the tab's reply. All the real logic (diffing, gating,
+snapshots) lives in the app, where it already exists.
 
 ### Transport: `wss` for https, `ws` for http dev
 An `https` page (GitHub Pages) cannot open `ws://localhost` (mixed content,
@@ -63,12 +73,15 @@ this app. The bridge therefore enforces, on every connection:
 | `get_state()` | Returns live editor state: `{ meta, markdown, pages, overflow, overflowingPages, titleFitPt, palette, hasLogo }`. Reads the **unsaved** in-editor state — exactly what you see. |
 | `get_screenshot()` | Best-effort PNG of `.page` via html2canvas (after `document.fonts.ready`). Approximate — see *Vision caveat*. |
 | `propose_changes({ markdown?, title?, palette?, fontSize?, org?, year?, web? })` | Stages an **edit proposal**. Returns `"staged"`. Never writes. |
+| `create_concept({ markdown?, title?, palette?, fontSize?, org?, year?, web? })` | Stages a **create proposal** for a brand-new flyer; on Accept it's created and opened. Returns `"staged"`. Never writes. |
 | `switch_concept(id)` | Stages a **switch proposal** ("Claude chce otevřít …"). Returns `"staged"`. |
 | `await_decision()` | **Blocks** until you Accept/Reject in the review pane, then returns `{ accepted, reason? }`. Caps at ~45 s → `{ status: "pending" }` (call again). The cap sits under the MCP client's ~60 s per-request timeout. This is how Claude is "notified" you finished reviewing. |
 | `list_concepts()` | `[{ id, title }]`. |
 
-`create` / `delete` concept are intentionally **human-only** in v1 (delete is
-hard to undo). Can be added later as gated proposals.
+`create_concept` is a **gated proposal** like every other AI action — staged,
+diffed, and applied only on your Accept (Undo drops the new concept). `delete`
+stays intentionally **human-only** (hard to undo); it could become a gated
+proposal later.
 
 ## Apply model — always human-gated
 
@@ -77,6 +90,7 @@ Every Claude action is a **proposal**, never a write. One typed pending slot:
 ```
 pendingProposal: { kind: 'edit', target: {meta, markdown} }
                | { kind: 'switch', toId }
+               | { kind: 'create', target: {meta, markdown} }
                | null      // newer proposal replaces an un-decided one
 ```
 
@@ -85,6 +99,7 @@ A `<ProposalReview>` pane appears when a proposal exists:
   `HistoryExplorer`); recomputed every render so it stays honest if you keep
   typing underneath.
 - **switch** → a small confirm card.
+- **create** → the new flyer's settings summary + its body previewed as additions.
 - `[Přijmout]` / `[Zamítnout]` + optional "proč?" field on reject.
 
 **Accept** = `saveManualSnapshot('Před úpravou od AI')` → the existing

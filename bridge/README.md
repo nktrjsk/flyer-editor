@@ -8,6 +8,23 @@ your explicit Accept/Reject in the editor.
 static files; this is a Node process on your machine that the editor tab dials
 into. Full design: [`../docs/ai-bridge.md`](../docs/ai-bridge.md).
 
+## How it works (two processes)
+
+The bridge is split so multiple Claude clients can't fight over one port:
+
+- **`relay.js`** — the **singleton daemon**. Owns the relay ports (8787/8788)
+  and the editor-tab connection, plus a local control socket. Auto-started on
+  demand, shared by everyone, and self-exits ~30 s after the last client leaves
+  (so a stale daemon from old code can't linger).
+- **`server.js`** — a thin **MCP shim**, one per Claude client. Binds no ports;
+  it ensures the daemon is up (spawning it if needed) and forwards tool calls
+  over the control socket.
+
+So N Claude clients → N shims → 1 daemon → 1 tab. A second client can never kill
+the first's tools — the failure mode this split exists to remove. If tools ever
+go missing, just reconnect the `flyer` server in your client (or `/mcp` in
+Claude Code); the shim respawns the daemon. Daemon logs: `bridge/.relay-8787.log`.
+
 ## One-time setup
 
 ```bash
@@ -26,7 +43,8 @@ optional there — but the `.token` is always required.
 Either run it standalone:
 
 ```bash
-npm start
+npm start          # a shim; also brings the shared daemon up
+npm run relay      # just the daemon, in the foreground (handy for watching logs)
 ```
 
 …or register it with your Claude so it spawns automatically:

@@ -17,6 +17,7 @@ export default function App() {
   // Ref populated by EditorLayout via onSnapshotReady — avoids prop-drilling
   // the snapshot function through the component tree.
   const saveManualSnapshotRef = useRef<((label: string | null) => void) | null>(null)
+  const publishRef = useRef<(() => void) | null>(null)
 
   function handleSaveSnapshot() {
     setLabelModalOpen(true)
@@ -38,6 +39,7 @@ export default function App() {
           <Toolbar
             onOpenSettings={() => setSettingsOpen(true)}
             onSaveSnapshot={handleSaveSnapshot}
+            onPublish={() => publishRef.current?.()}
           />
           {/* EditorLayout suspends while Evolu/OPFS initialises. Show a populated
               (cached) or skeleton placeholder instead of an empty editor. The
@@ -47,6 +49,7 @@ export default function App() {
             <Suspense fallback={<EditorPlaceholder />}>
               <EditorLayout
                 onSnapshotReady={fn => { saveManualSnapshotRef.current = fn }}
+                onPublishReady={fn => { publishRef.current = fn }}
               />
             </Suspense>
           </BootErrorBoundary>
