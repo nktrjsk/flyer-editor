@@ -110,6 +110,25 @@ body { font-family: var(--font-body); background: #191c1e; }
   background: rgba(255,255,255,0.30);
   border-color: rgba(255,255,255,0.55);
 }
+/* Trust mode armed — amber, deliberately conspicuous in the toolbar */
+.ai-connect-btn.is-auto {
+  background: rgba(245,200,66,0.32);
+  border-color: rgba(245,200,66,0.85);
+}
+.ai-connect-auto {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  padding: 8px 10px;
+  background: #fbf3da;
+  border: 1px solid #e8d48a;
+  border-radius: 5px;
+  cursor: pointer;
+}
+.ai-connect-auto input { margin-top: 2px; flex-shrink: 0; cursor: pointer; }
+.ai-connect-auto-text { display: flex; flex-direction: column; gap: 3px; }
+.ai-connect-auto-text strong { font-size: 9pt; color: var(--text); }
+.ai-connect-auto-text small { font-size: 8pt; color: var(--muted); line-height: 1.45; }
 .ai-connect-popover {
   position: absolute;
   right: 0;
@@ -588,7 +607,7 @@ body { font-family: var(--font-body); background: #191c1e; }
 
 /* ─── Sidebar ─────────────────────────────────── */
 .sidebar {
-  width: 320px;
+  width: 360px;
   background: #141618;
   border-right: 1px solid #2e3234;
   display: flex;
@@ -781,7 +800,7 @@ body { font-family: var(--font-body); background: #191c1e; }
 
 /* ─── Editor layout (3-col) ───────────────────── */
 .editor-layout {
-  grid-template-columns: 320px 400px 1fr;
+  grid-template-columns: 360px 400px 1fr;
 }
 
 /* ─── Settings modal ──────────────────────────── */

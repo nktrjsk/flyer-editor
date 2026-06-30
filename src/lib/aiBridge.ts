@@ -37,9 +37,33 @@ let reconnectTimer: ReturnType<typeof setTimeout> | null = null
 
 const statusListeners = new Set<(s: BridgeStatus) => void>()
 
+// --- auto-accept ("trust mode") ---------------------------------------------
+// Opt-in, OFF by default, in-memory only (deliberately NOT persisted — it must
+// never survive a reload). When on, EditorLayout applies `edit` proposals
+// without manual gating. Reset to off whenever the bridge disconnects, so the
+// human gate can never be left down while there's no live session.
+let autoAcceptEdits = false
+const autoAcceptListeners = new Set<(b: boolean) => void>()
+
+export function getAutoAcceptEdits(): boolean {
+  return autoAcceptEdits
+}
+export function setAutoAcceptEdits(b: boolean) {
+  if (b === autoAcceptEdits) return
+  autoAcceptEdits = b
+  autoAcceptListeners.forEach(l => l(b))
+}
+export function onAutoAcceptChange(cb: (b: boolean) => void): () => void {
+  autoAcceptListeners.add(cb)
+  cb(autoAcceptEdits)
+  return () => autoAcceptListeners.delete(cb)
+}
+
 function setStatus(s: BridgeStatus) {
   if (s === status) return
   status = s
+  // Safety: never leave trust mode armed once the live session drops.
+  if (s === 'disconnected') setAutoAcceptEdits(false)
   statusListeners.forEach(l => l(s))
 }
 

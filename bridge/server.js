@@ -158,7 +158,9 @@ const TOOLS = [
   {
     name: 'propose_changes',
     description:
-      'Navrhne úpravu aktivního letáku. NEZAPISUJE — uživatel ji musí potvrdit v editoru. ' +
+      'Navrhne úpravu aktivního letáku. Standardně NEZAPISUJE — uživatel ji potvrdí v editoru ' +
+      '(vrátí "staged"). Má-li uživatel zapnutý režim automatického přijímání, úprava se použije ' +
+      'rovnou (vrátí "auto-accepted") a await_decision není potřeba. ' +
       'Předchozí nepotvrzený návrh je nahrazen. Vrať jen pole, která chceš změnit.',
     inputSchema: {
       type: 'object',

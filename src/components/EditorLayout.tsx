@@ -6,6 +6,7 @@ import { useActiveConcept } from '../hooks/useActiveConcept'
 import { useAutoSave } from '../hooks/useAutoSave'
 import { useSnapshots } from '../hooks/useSnapshots'
 import { useAiBridge } from '../hooks/useAiBridge'
+import { getAutoAcceptEdits } from '../lib/aiBridge'
 import { captureFlyerPng } from '../lib/flyerScreenshot'
 import { loadPublishConfig, isConfigured, newPublishId, publishConcept } from '../lib/githubPublish'
 import { useEvolu } from '../db/schema'
@@ -115,12 +116,16 @@ export default function EditorLayout({ onSnapshotReady, onPublishReady }: Editor
   const decisionWaiterRef = useRef<((d: Decision) => void) | null>(null)
   const bufferedDecisionRef = useRef<Decision | null>(null)
 
-  function settleDecision(d: Decision) {
+  // buffer=true keeps a decision for the next await_decision call (the normal
+  // gated flow). Auto-accept passes buffer=false: it resolves a waiter if one
+  // is already blocked, but never buffers — no review happened, so a later
+  // await_decision must not pick up a stale "accepted".
+  function settleDecision(d: Decision, buffer = true) {
     if (decisionWaiterRef.current) {
       const resolve = decisionWaiterRef.current
       decisionWaiterRef.current = null
       resolve(d)
-    } else {
+    } else if (buffer) {
       bufferedDecisionRef.current = d
     }
   }
@@ -162,6 +167,13 @@ export default function EditorLayout({ onSnapshotReady, onPublishReady }: Editor
       }
       if ('palette' in args) nextMeta.palette = args.palette === 'bw' ? 'bw' : 'color'
       const nextMarkdown = 'markdown' in args ? String(args.markdown ?? '') : markdown
+      // Trust mode: apply edits straight away (still snapshotted + undoable).
+      // Only `edit` is auto-accepted; switch/create/delete always stay gated.
+      if (getAutoAcceptEdits()) {
+        applyEditTarget(nextMeta, nextMarkdown, true)
+        settleDecision({ accepted: true }, false)
+        return 'auto-accepted'
+      }
       setPendingProposal({ kind: 'edit', target: { meta: nextMeta, markdown: nextMarkdown } })
       return 'staged'
     },
@@ -259,26 +271,33 @@ export default function EditorLayout({ onSnapshotReady, onPublishReady }: Editor
     update('concept', { id, reviewStatus: current === 'review' ? null : 'review' })
   }
 
+  // Apply an edit target through the single-writer path: snapshot first, swap
+  // state, offer Undo. Shared by manual Accept and auto-accept (trust mode), so
+  // both are identical writes — just a snapshot + restore, fully undoable.
+  function applyEditTarget(targetMeta: ConceptMeta, targetMarkdown: string, auto: boolean) {
+    saveManualSnapshot(auto ? 'Před úpravou od AI (auto)' : 'Před úpravou od AI')
+    const prevMeta = { ...meta }
+    const prevMarkdown = markdown
+    setMeta(targetMeta)
+    setMarkdown(targetMarkdown)
+    showToast({
+      message: auto ? 'Úprava od AI přijata automaticky.' : 'Úprava od AI použita.',
+      action: {
+        label: 'Zpět',
+        onClick: () => { setMeta(prevMeta); setMarkdown(prevMarkdown) },
+      },
+    })
+  }
+
   // Accept an AI proposal — the SAME single-writer path as handleRestore, so it
   // snapshots first and is fully undoable.
   function acceptProposal() {
     const p = proposalRef.current
     if (!p) return
     if (p.kind === 'edit') {
-      saveManualSnapshot('Před úpravou od AI')
-      const prevMeta = { ...meta }
-      const prevMarkdown = markdown
-      setMeta(p.target.meta)
-      setMarkdown(p.target.markdown)
+      applyEditTarget(p.target.meta, p.target.markdown, false)
       setPendingProposal(null)
       settleDecision({ accepted: true })
-      showToast({
-        message: 'Úprava od AI použita.',
-        action: {
-          label: 'Zpět',
-          onClick: () => { setMeta(prevMeta); setMarkdown(prevMarkdown) },
-        },
-      })
     } else if (p.kind === 'switch') {
       // Snapshot the outgoing concept first, then switch — mirrors handleSelect.
       const prevId = activeId

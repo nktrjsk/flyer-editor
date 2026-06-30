@@ -2,10 +2,13 @@ import { useEffect, useRef, useState } from 'react'
 import {
   disableBridge,
   enableBridge,
+  getAutoAcceptEdits,
   getBridgeStatus,
   isEnabled,
+  onAutoAcceptChange,
   onBridgeStatus,
   savedToken,
+  setAutoAcceptEdits,
   type BridgeStatus,
 } from '../lib/aiBridge'
 
@@ -17,11 +20,13 @@ import {
  */
 export default function AiConnect() {
   const [status, setStatus] = useState<BridgeStatus>(getBridgeStatus())
+  const [autoAccept, setAutoAccept] = useState(getAutoAcceptEdits())
   const [open, setOpen] = useState(false)
   const [token, setToken] = useState(savedToken())
   const wrapRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => onBridgeStatus(setStatus), [])
+  useEffect(() => onAutoAcceptChange(setAutoAccept), [])
 
   useEffect(() => {
     if (!open) return
@@ -34,7 +39,7 @@ export default function AiConnect() {
 
   const enabled = isEnabled()
   const label =
-    status === 'connected' ? '🟢 AI připojeno'
+    status === 'connected' ? (autoAccept ? '🟢 AI připojeno · ⚡ auto' : '🟢 AI připojeno')
     : status === 'connecting' ? '🟡 připojování…'
     : enabled ? '🔴 AI nepřipojeno'
     : '🤖 Připojit k AI'
@@ -42,7 +47,7 @@ export default function AiConnect() {
   return (
     <div className="ai-connect" ref={wrapRef}>
       <button
-        className={`ai-connect-btn${status === 'connected' ? ' is-connected' : ''}`}
+        className={`ai-connect-btn${status === 'connected' ? ' is-connected' : ''}${autoAccept ? ' is-auto' : ''}`}
         onClick={() => setOpen(o => !o)}
         title="Připojení k AI"
       >
@@ -58,6 +63,22 @@ export default function AiConnect() {
                 : 'nepřipojeno'}
             </strong>
           </div>
+          {status === 'connected' && (
+            <label className="ai-connect-auto">
+              <input
+                type="checkbox"
+                checked={autoAccept}
+                onChange={e => setAutoAcceptEdits(e.target.checked)}
+              />
+              <span className="ai-connect-auto-text">
+                <strong>⚡ Automaticky přijímat úpravy</strong>
+                <small>
+                  Úpravy aktivního letáku se použijí bez potvrzení (jde vrátit zpět).
+                  Nové letáky, přepnutí a mazání se stále potvrzují ručně. Vypne se při odpojení.
+                </small>
+              </span>
+            </label>
+          )}
           <label className="ai-connect-field">
             <span>Token (z <code>bridge/.token</code>)</span>
             <input
