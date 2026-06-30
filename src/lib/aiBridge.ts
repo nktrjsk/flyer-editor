@@ -168,9 +168,16 @@ function openSocket() {
     }
   }
 
-  sock.onclose = () => {
+  sock.onclose = ev => {
     if (ws === sock) ws = null
     setStatus('disconnected')
+    // 4003 = the relay deliberately handed the single bridge slot to a newer
+    // tab ("newest wins"). Yield instead of reconnecting — otherwise two open
+    // tabs kick each other off ~once a second forever (reconnect storm).
+    if (ev.code === 4003) {
+      shouldConnect = false
+      return
+    }
     scheduleReconnect()
   }
 

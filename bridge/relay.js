@@ -73,6 +73,30 @@ let activeTab = null
 const inflight = new Map()
 let nextId = 1
 
+// --- storm breaker ----------------------------------------------------------
+// Two editor tabs (e.g. two browsers) both auto-connecting will each kick the
+// other off the single "newest wins" slot ~1×/s forever. Up-to-date clients
+// yield on the 4003 replace (see aiBridge.ts); this is the version-INDEPENDENT
+// safety net for old/buggy clients. After too many replacements in a short
+// window we go "sticky": reject new tabs at the HANDSHAKE — so they get no
+// onopen and their reconnect backoff keeps growing instead of resetting — and
+// hold whichever tab is currently active until it disconnects. Cleared when the
+// active tab goes away, so a single fresh tab always connects normally.
+const STORM_WINDOW_MS = 8_000
+const STORM_THRESHOLD = 6
+let replaceTimes = []
+let sticky = false
+
+function noteReplacement() {
+  const now = Date.now()
+  replaceTimes = replaceTimes.filter(t => now - t < STORM_WINDOW_MS)
+  replaceTimes.push(now)
+  if (!sticky && replaceTimes.length >= STORM_THRESHOLD) {
+    sticky = true
+    log(`STORM: ${replaceTimes.length} tab replacements in <${STORM_WINDOW_MS}ms — locking to current tab. Close the duplicate editor tab/browser.`)
+  }
+}
+
 function verifyClient(info, cb) {
   const origin = info.origin || info.req.headers.origin
   let presented = null
@@ -91,6 +115,13 @@ function verifyClient(info, cb) {
     cb(false, 401, 'bad token')
     return
   }
+  // Storm lock: keep the incumbent, bounce newcomers before the upgrade so they
+  // never see onopen (no backoff reset). Self-releases when the incumbent drops.
+  if (sticky && activeTab && activeTab.readyState === activeTab.OPEN) {
+    log('reject handshake — storm lock active; keeping current tab. Close duplicate editor tabs.')
+    cb(false, 503, 'bridge busy — another editor tab is connected; close duplicates')
+    return
+  }
   cb(true)
 }
 
@@ -98,6 +129,7 @@ function handleTab(ws, req) {
   log('tab connected from', req.headers.origin)
   if (activeTab && activeTab !== ws && activeTab.readyState === activeTab.OPEN) {
     log('replacing previous active tab')
+    noteReplacement()
     try { activeTab.close(4003, 'replaced by newer tab') } catch { /* ignore */ }
   }
   activeTab = ws
@@ -116,7 +148,11 @@ function handleTab(ws, req) {
   })
 
   ws.on('close', () => {
-    if (activeTab === ws) activeTab = null
+    if (activeTab === ws) {
+      activeTab = null
+      // Incumbent gone — drop the storm lock so the next single tab connects normally.
+      if (sticky) { sticky = false; replaceTimes = []; log('active tab closed — storm lock released') }
+    }
     // Fail any calls that were waiting on this tab so shims don't hang.
     for (const [id, p] of [...inflight]) {
       inflight.delete(id)
