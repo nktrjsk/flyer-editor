@@ -54,7 +54,14 @@ if (typeof window === 'undefined') {
                         headers: newHeaders,
                     });
                 })
-                .catch((e) => console.error(e))
+                // Patched (upstream bug): the original `.catch(console.error)`
+                // returned undefined, so one aborted/failed fetch (e.g. a Chrome
+                // prerender) cascaded into extra "Failed to convert value to
+                // 'Response'" errors. Return a real network-error Response.
+                .catch((e) => {
+                    console.error(e);
+                    return Response.error();
+                })
         );
     });
 
