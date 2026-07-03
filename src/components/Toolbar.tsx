@@ -1,4 +1,5 @@
 import AiConnect from './AiConnect'
+import SyncStatus from './SyncStatus'
 
 interface ToolbarProps {
   onOpenSettings: () => void
@@ -11,6 +12,7 @@ export default function Toolbar({ onOpenSettings, onSaveSnapshot, onPublish }: T
     <header className="toolbar">
       <span className="toolbar-title">Samostuduj · editor letáku</span>
       <div className="toolbar-actions">
+        <SyncStatus />
         <AiConnect />
         <button onClick={onSaveSnapshot}>📷 Uložit zálohu</button>
         <button onClick={onPublish}>⬆ Publikovat</button>

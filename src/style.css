@@ -104,6 +104,30 @@ body { font-family: var(--font-body); background: #191c1e; }
 }
 .toolbar button:hover { background: rgba(255,255,255,0.26); }
 
+/* ── Sync status chip ─────────────────────────────────────── */
+.sync-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 8.5pt;
+  opacity: 0.85;
+  cursor: help;
+  padding: 5px 6px;
+}
+.sync-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #9aa0a6;
+}
+.sync-status--checking .sync-status-dot { animation: sync-pulse 1.2s ease-in-out infinite; }
+.sync-status--online .sync-status-dot { background: #7ee2a8; }
+.sync-status--offline .sync-status-dot { background: #ff8a80; }
+.sync-status--offline { opacity: 1; font-weight: 600; }
+@keyframes sync-pulse {
+  50% { opacity: 0.3; }
+}
+
 /* ── AI connect toolbar control ───────────────────────────── */
 .ai-connect { position: relative; }
 .ai-connect-btn.is-connected {
