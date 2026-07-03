@@ -190,7 +190,7 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
       // (empty string, whitespace) show a plain message instead.
       const msg = result.error.type === 'Mnemonic'
         ? formatMnemonicError(result.error)
-        : 'Zadejte platnou zálohovací frázi (12 slov oddělených mezerou).'
+        : 'Zadejte platnou zálohovací frázi (slova oddělená mezerou).'
       setError(msg)
       return
     }
@@ -225,7 +225,7 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
         <form onSubmit={handleRestore}>
           <textarea
             className="mnemonic-input"
-            placeholder="Zadejte 12 slov zálohovací fráze…"
+            placeholder="Zadejte slova zálohovací fráze…"
             value={input}
             rows={3}
             onChange={e => {

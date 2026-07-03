@@ -25,6 +25,18 @@ interface EditorLayoutProps {
 }
 
 /**
+ * Serialize the editable content of a concept for change detection. Covers
+ * exactly the columns useAutoSave writes — row-only fields (reviewStatus,
+ * publishId) are excluded so they never trigger a spurious adoption.
+ */
+function contentKey(meta: ConceptMeta, markdown: string): string {
+  return JSON.stringify([
+    meta.title, meta.org, meta.year, meta.web, meta.fontSize,
+    meta.logo, meta.logoId, meta.palette, markdown,
+  ])
+}
+
+/**
  * Read the live render facts straight from the preview DOM — the same signals
  * the overflow bar and title auto-fit already compute, surfaced for `get_state`.
  */
@@ -72,10 +84,39 @@ export default function EditorLayout({ onSnapshotReady, onPublishReady }: Editor
   // The guard `activeRow?.id === activeId` prevents syncing from stale Evolu
   // data returned before the query has caught up to the new concept.
   const [syncedId, setSyncedId] = useState<ConceptId | null>(null)
+  // `agreedKey` is the last content on which local state and the DB row agreed
+  // — set on adoption and whenever our own auto-save echoes back. It lets us
+  // tell a remote sync change (row moved away from the agreement) apart from
+  // the echo of our own write (row caught up to local). State, not a ref, for
+  // the same Strict Mode reason as `syncedId` above.
+  const [agreedKey, setAgreedKey] = useState<string | null>(null)
   if (syncedId !== activeId && activeRow?.id === activeId) {
     setSyncedId(activeId)
     setMeta(savedMeta)
     setMarkdown(savedMarkdown)
+    setAgreedKey(contentKey(savedMeta, savedMarkdown))
+  }
+
+  // Adopt remote changes to the OPEN concept (other device via relay, or a
+  // second tab). Without this the editor only reads the row on concept switch,
+  // so synced edits stay invisible until a reload — "sync looks broken".
+  if (syncedId === activeId && activeRow?.id === activeId) {
+    const rowKey = contentKey(savedMeta, savedMarkdown)
+    if (rowKey !== agreedKey) {
+      const localKey = contentKey(meta, markdown)
+      if (localKey === rowKey) {
+        // Our own auto-save echoed back — record the new agreement.
+        setAgreedKey(rowKey)
+      } else if (localKey === agreedKey) {
+        // Local state is clean since the last agreement → genuine remote
+        // change → adopt it.
+        setAgreedKey(rowKey)
+        setMeta(savedMeta)
+        setMarkdown(savedMarkdown)
+      }
+      // Both diverged: the user is mid-edit; their pending auto-save wins
+      // (column-level last-write-wins), so leave local state alone.
+    }
   }
 
   useAutoSave(activeId, meta, markdown, syncedId === activeId)
