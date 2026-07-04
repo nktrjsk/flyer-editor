@@ -8,6 +8,7 @@ import {
 } from '@evolu/common'
 import { createUseEvolu } from '@evolu/react'
 import { evoluReactWebDeps } from '@evolu/react-web'
+import { loadRelayUrl } from '../lib/relayConfig'
 
 // ── ID types ─────────────────────────────────────────────
 const ConceptId = id('Concept')
@@ -73,8 +74,11 @@ const Schema = {
 // It defaults to "/", which on GitHub Pages (served under /flyer-editor/)
 // would land on root where nothing is deployed and break the app. Use Vite's
 // BASE_URL so it resolves to "/" in dev and "/flyer-editor/" in production.
+// transports: relay is configurable per device (⚙ Nastavení → localStorage)
+// because the free default relay enforces a storage quota; read once at boot.
 export const evolu = createEvolu(evoluReactWebDeps)(Schema, {
   reloadUrl: import.meta.env.BASE_URL,
+  transports: [{ type: 'WebSocket', url: loadRelayUrl() }],
 })
 
 // ── Typed hooks ───────────────────────────────────────────

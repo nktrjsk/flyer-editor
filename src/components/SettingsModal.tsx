@@ -12,6 +12,12 @@ import {
 } from '../lib/githubPublish'
 import { useToast } from './ToastProvider'
 import { useConfirm } from './ConfirmProvider'
+import {
+  defaultRelayUrl,
+  isValidRelayUrl,
+  loadRelayUrl,
+  saveRelayUrl,
+} from '../lib/relayConfig'
 
 // ── Mnemonic display ──────────────────────────────────────
 // Suspends until appOwner is available (OPFS/worker init).
@@ -46,6 +52,61 @@ function MnemonicPanel() {
       <button className="mnemonic-copy-btn" onClick={handleCopy}>
         {copied ? '✓ Zkopírováno' : 'Kopírovat frázi'}
       </button>
+    </>
+  )
+}
+
+// ── Relay selection ───────────────────────────────────────
+// Evolu reads transports once at boot, so saving reloads the page. Device-
+// local (like the PAT): every device that should sync together must use the
+// same relay.
+function RelaySettings() {
+  const [url, setUrl] = useState(loadRelayUrl())
+  const [error, setError] = useState<string | null>(null)
+
+  const isDefault = loadRelayUrl() === defaultRelayUrl
+  const dirty = url.trim() !== loadRelayUrl() && !(url.trim() === '' && isDefault)
+
+  function handleSave(e: React.FormEvent) {
+    e.preventDefault()
+    const trimmed = url.trim()
+    if (trimmed && !isValidRelayUrl(trimmed)) {
+      setError('Zadejte platnou WebSocket adresu (wss:// nebo ws://).')
+      return
+    }
+    saveRelayUrl(trimmed)
+    location.reload()
+  }
+
+  return (
+    <>
+      <p className="modal-section-label" style={{ marginTop: 20 }}>
+        Synchronizační server
+      </p>
+      <p className="modal-hint">
+        Výchozí server ({defaultRelayUrl}) je zdarma a má omezenou kapacitu.
+        Vlastní server nastavte na <strong>všech zařízeních</strong>, která se
+        mají synchronizovat. Prázdné pole = výchozí server. Uložení znovu
+        načte aplikaci.
+      </p>
+      <form onSubmit={handleSave}>
+        <input
+          className="settings-input"
+          style={{ width: '100%', boxSizing: 'border-box' }}
+          placeholder={defaultRelayUrl}
+          value={url}
+          onChange={e => {
+            setUrl(e.target.value)
+            setError(null)
+          }}
+        />
+        {error && <p className="mnemonic-error">{error}</p>}
+        <div className="settings-actions">
+          <button type="submit" className="modal-restore-btn" disabled={!dirty}>
+            Uložit a načíst znovu
+          </button>
+        </div>
+      </form>
     </>
   )
 }
@@ -242,6 +303,9 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
             {restoring ? 'Obnovuji…' : 'Obnovit a restartovat'}
           </button>
         </form>
+
+        {/* ── Relay ── */}
+        <RelaySettings />
 
         {/* ── Publish / recovery ── */}
         <Suspense fallback={<p className="modal-hint">Načítání…</p>}>

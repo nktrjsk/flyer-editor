@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { defaultDbConfig } from '@evolu/common/local-first'
+import { loadRelayUrl } from '../lib/relayConfig'
 
 /**
  * Relay reachability, as observable from app code. Evolu 7.x keeps its sync
@@ -15,9 +15,11 @@ export type SyncStatus = 'checking' | 'online' | 'offline'
 const PROBE_INTERVAL_MS = 30_000
 const PROBE_TIMEOUT_MS = 5_000
 
-/** The relay Evolu actually syncs with (schema.ts passes no custom transports). */
-export const relayUrl: string =
-  defaultDbConfig.transports.find(t => t.type === 'WebSocket')?.url ?? ''
+/**
+ * The relay Evolu actually syncs with — resolved once at module load, same as
+ * schema.ts does at boot, so probe and instance always agree within a session.
+ */
+export const relayUrl: string = loadRelayUrl()
 
 function probe(url: string): Promise<boolean> {
   return new Promise(resolve => {
