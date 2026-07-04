@@ -56,7 +56,7 @@ export default function MetaSection({ meta, onChange, onLogoChange }: MetaSectio
         <label>Web / odkaz</label>
         <input
           type="text"
-          placeholder="samostuduj.cz"
+          placeholder="example.cz"
           value={meta.web}
           onChange={e => onChange({ web: e.target.value })}
         />

@@ -1,4 +1,4 @@
-# Samostuduj — editor letáku
+# Editor letáku
 
 Jednoduchý prohlížečový editor informačních letáků. Markdown na vstupu, A5 PDF na výstupu.
 

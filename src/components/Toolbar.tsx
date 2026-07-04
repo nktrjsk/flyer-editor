@@ -10,7 +10,7 @@ interface ToolbarProps {
 export default function Toolbar({ onOpenSettings, onSaveSnapshot, onPublish }: ToolbarProps) {
   return (
     <header className="toolbar">
-      <span className="toolbar-title">Samostuduj · editor letáku</span>
+      <span className="toolbar-title">Editor letáku</span>
       <div className="toolbar-actions">
         <SyncStatus />
         <AiConnect />

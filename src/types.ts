@@ -38,7 +38,7 @@ export type Decision =
 
 export const DEFAULT_META: ConceptMeta = {
   title: 'Znakový jazyk',
-  org: 'Samostuduj',
+  org: '',
   year: String(new Date().getFullYear()),
   web: '',
   fontSize: 9.5,
