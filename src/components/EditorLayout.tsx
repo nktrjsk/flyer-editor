@@ -4,13 +4,14 @@ import { writeEditorCache } from '../lib/editorCache'
 import { useConcepts } from '../hooks/useConcepts'
 import { useActiveConcept } from '../hooks/useActiveConcept'
 import { useIdentity } from '../hooks/useIdentity'
+import { useOrganizations } from '../hooks/useOrganizations'
 import { useAutoSave } from '../hooks/useAutoSave'
 import { useSnapshots } from '../hooks/useSnapshots'
 import { useAiBridge } from '../hooks/useAiBridge'
 import { getAutoAcceptEdits } from '../lib/aiBridge'
 import { captureFlyerPng } from '../lib/flyerScreenshot'
 import { loadPublishConfig, isConfigured, newPublishId, publishConcept } from '../lib/githubPublish'
-import { useEvolu } from '../db/schema'
+import { useEvolu, type OrganizationId } from '../db/schema'
 import { useToast } from './ToastProvider'
 import { useConfirm } from './ConfirmProvider'
 import Sidebar from './Sidebar'
@@ -57,8 +58,24 @@ function readPreviewFacts() {
 }
 
 export default function EditorLayout({ onSnapshotReady, onPublishReady }: EditorLayoutProps) {
-  const concepts = useConcepts()
+  const allConcepts = useConcepts()
   const { update } = useEvolu()
+
+  // Workspaces: the active one filters the sidebar and stamps new flyers.
+  // null = the "Vše" (All) view spanning every workspace.
+  const { organizations, activeOrgId, byId, selectOrg } = useOrganizations()
+
+  // The concept set the rest of the editor operates on is scoped to the active
+  // workspace; useActiveConcept auto-selects within this list, so switching
+  // workspace naturally lands on one of its flyers.
+  const concepts = useMemo(
+    () =>
+      activeOrgId === null
+        ? allConcepts
+        : allConcepts.filter(c => c.organizationId === activeOrgId),
+    [allConcepts, activeOrgId],
+  )
+
   const {
     activeId,
     activeRow,
@@ -123,23 +140,27 @@ export default function EditorLayout({ onSnapshotReady, onPublishReady }: Editor
 
   useAutoSave(activeId, meta, markdown, syncedId === activeId)
 
-  // Auto-derived flyer fields: org/web come from the shared identity setting
-  // (Nastavení), falling back to the legacy per-concept columns for concepts
-  // created before the setting existed; year is the year of the last edit
-  // (updatedAt is a system column Evolu bumps on every row change). Everything
-  // that *renders or captures* the flyer uses effectiveMeta; only the truly
-  // editable fields live in `meta` state and get auto-saved.
+  // Auto-derived flyer fields. org/web resolve in priority order:
+  //   1. the concept's workspace (organization row), when it has one;
+  //   2. the shared appSetting identity (Nastavení);
+  //   3. the legacy per-concept org/web columns (pre-workspace flyers).
+  // Year is the year of the last edit (updatedAt is a system column Evolu bumps
+  // on every row change). Everything that *renders or captures* the flyer uses
+  // effectiveMeta; only the truly editable fields live in `meta` state and get
+  // auto-saved.
   const identity = useIdentity()
+  const conceptOrg =
+    (activeRow?.organizationId ? byId.get(activeRow.organizationId as OrganizationId) : null) ?? null
   const rowStamp = activeRow?.updatedAt ?? activeRow?.createdAt ?? null
   const autoYear = String(
     (rowStamp ? new Date(String(rowStamp)) : new Date()).getFullYear(),
   )
   const effectiveMeta = useMemo<ConceptMeta>(() => ({
     ...meta,
-    org: identity.org ?? meta.org,
-    web: identity.web ?? meta.web,
+    org: conceptOrg ? conceptOrg.name : (identity.org ?? meta.org),
+    web: conceptOrg ? conceptOrg.web : (identity.web ?? meta.web),
     year: autoYear,
-  }), [meta, identity.org, identity.web, autoYear])
+  }), [meta, conceptOrg?.name, conceptOrg?.web, identity.org, identity.web, autoYear])
 
   // Persist the visible editor state so the next load can paint a populated
   // placeholder instead of an empty editor. Only cache once local state is
@@ -161,7 +182,8 @@ export default function EditorLayout({ onSnapshotReady, onPublishReady }: Editor
   // looked — including the auto org/web/year of that moment.
   const { saveAutoSnapshot, saveManualSnapshot } = useSnapshots(activeId, effectiveMeta, markdown)
 
-  const conceptList = concepts.map((c: { id: ConceptId; title: string | null }) => ({
+  // AI operates on the whole database, not just the visible workspace.
+  const conceptList = allConcepts.map((c: { id: ConceptId; title: string | null }) => ({
     id: c.id as string,
     title: c.title ?? '',
   }))
@@ -367,17 +389,25 @@ export default function EditorLayout({ onSnapshotReady, onPublishReady }: Editor
     } else if (p.kind === 'switch') {
       // Snapshot the outgoing concept first, then switch — mirrors handleSelect.
       const prevId = activeId
+      const prevOrg = activeOrgId
       saveAutoSnapshot()
+      // Follow the target into its workspace so it isn't hidden by the filter
+      // (its org may differ from the one currently in view).
+      const target = allConcepts.find(c => c.id === p.toId)
+      selectOrg((target?.organizationId as OrganizationId | null) ?? null)
       selectConcept(p.toId as ConceptId)
       setPendingProposal(null)
       settleDecision({ accepted: true })
       showToast({
         message: 'Přepnuto na jiný leták.',
-        ...(prevId ? { action: { label: 'Zpět', onClick: () => selectConcept(prevId) } } : {}),
+        ...(prevId
+          ? { action: { label: 'Zpět', onClick: () => { selectOrg(prevOrg); selectConcept(prevId) } } }
+          : {}),
       })
     } else if (p.kind === 'create') {
       // Snapshot the outgoing concept first (mirrors handleSelect), then create
-      // the new one populated with the proposed content and switch to it.
+      // the new one populated with the proposed content and switch to it. The
+      // new flyer joins the workspace currently in view (null in the All view).
       const prevId = activeId
       saveAutoSnapshot()
       const newId = createConcept({
@@ -387,6 +417,7 @@ export default function EditorLayout({ onSnapshotReady, onPublishReady }: Editor
         web:      p.target.meta.web,
         fontSize: p.target.meta.fontSize,
         palette:  p.target.meta.palette,
+        organizationId: activeOrgId,
         markdown: p.target.markdown,
       })
       setPendingProposal(null)
@@ -502,8 +533,11 @@ export default function EditorLayout({ onSnapshotReady, onPublishReady }: Editor
           id: c.id, title: c.title ?? '', reviewStatus: c.reviewStatus,
         }))}
         activeId={activeId}
+        organizations={organizations}
+        activeOrgId={activeOrgId}
+        onSelectOrg={selectOrg}
         onSelect={id => handleSelect(id as ConceptId)}
-        onNew={() => createConcept()}
+        onNew={() => createConcept({ organizationId: activeOrgId })}
         onDelete={id => handleDelete(id as ConceptId)}
         onToggleReview={(id, current) => handleToggleReview(id as ConceptId, current)}
         onRestore={handleRestore}

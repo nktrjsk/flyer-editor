@@ -1,5 +1,5 @@
 import { useQuery } from '@evolu/react'
-import { conceptByIdQuery, noConceptQuery, useEvolu, type ConceptId, type ConceptLogoId } from '../db/schema'
+import { conceptByIdQuery, noConceptQuery, useEvolu, type ConceptId, type ConceptLogoId, type OrganizationId } from '../db/schema'
 import { DEFAULT_META, DEFAULT_MARKDOWN, type ConceptMeta, type Palette } from '../types'
 import { useMemo, useSyncExternalStore } from 'react'
 import { sqliteTrue } from '@evolu/common'
@@ -91,6 +91,7 @@ export function useActiveConcept(
     markdown?: string
     logo?: string | null
     logoId?: ConceptLogoId | null
+    organizationId?: OrganizationId | null
   }): ConceptId | null {
     const result = insert('concept', {
       title:    init?.title    ?? '',
@@ -103,6 +104,7 @@ export function useActiveConcept(
       palette:  init?.palette  ?? 'color',
       markdown: init?.markdown ?? '',
       publishId: null,
+      organizationId: init?.organizationId ?? null,
     })
     if (result.ok) {
       const id = result.value.id as ConceptId

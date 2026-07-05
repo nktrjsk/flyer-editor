@@ -28,16 +28,22 @@ Source lives in `src/`. Entry: `index.html` → `src/main.tsx` → `src/componen
 | `src/components/Sidebar.tsx`, `HistoryExplorer.tsx`, `HistoryPanel.tsx`, `DiffView.tsx` | Concept list + snapshot history/restore + line diffs. |
 | `src/components/SettingsModal.tsx` | Sync mnemonic display/restore. |
 | `src/components/ToastProvider.tsx`, `ConfirmProvider.tsx` | Toast + confirm primitives. |
-| `src/db/schema.ts` | Evolu schema (`concept`, `conceptSnapshot`, `conceptLogo`, `appSetting`), the Evolu instance, and queries. |
-| `src/hooks/` | `useConcepts`, `useActiveConcept`, `useSnapshots`, `useAutoSave`, `useAiBridge`, `useIdentity`. |
+| `src/db/schema.ts` | Evolu schema (`concept`, `conceptSnapshot`, `conceptLogo`, `appSetting`, `organization`), the Evolu instance, and queries. |
+| `src/hooks/` | `useConcepts`, `useActiveConcept`, `useSnapshots`, `useAutoSave`, `useAiBridge`, `useIdentity`, `useOrganizations`. |
 | `src/lib/` | `diff`, `recovery`, `editorCache`, `aiBridge`, `flyerScreenshot`. |
 
 **Data model (`src/db/schema.ts`):** a `concept` row is the source of truth for the
-editable fields (title/fontSize/palette/markdown + logo). Org/web come from the shared
-`appSetting` row (edited in Nastavení, synced via Evolu; legacy per-concept org/web
-columns are the fallback for pre-setting concepts) and year derives from the concept's
-`updatedAt` — EditorLayout composes these into `effectiveMeta` for rendering, snapshots,
-and publish; restores and AI proposals can't change them. The title is edited directly
+editable fields (title/fontSize/palette/markdown + logo). Org/web resolve in priority
+order for `effectiveMeta`: (1) the concept's workspace — an `organization` row
+referenced by `concept.organizationId`; (2) the shared `appSetting` row (the default
+identity, edited in Nastavení); (3) the legacy per-concept org/web columns (pre-workspace
+concepts). Year derives from the concept's `updatedAt`. EditorLayout composes these into
+`effectiveMeta` for rendering, snapshots, and publish; restores and AI proposals can't
+change them. **Workspaces (multi-tenant):** each `organization` carries its own printed
+identity; the active workspace (device-local, in localStorage via `useOrganizations`)
+filters the sidebar and stamps new concepts. `null` organizationId = unassigned (falls
+back to appSetting). The "Vše" view spans all workspaces. All single-mnemonic / single-DB
+— no sync-architecture change. The title is edited directly
 on the page (contenteditable in `Page.tsx`). Logos live in a shared `conceptLogo` table
 referenced by `logoId` so many snapshots reuse one base64 payload (legacy inline
 `concept.logo` kept for back-compat). Snapshots are working history in Evolu — see the
@@ -69,8 +75,7 @@ publishes `dist/`. Push to `main` → auto-deploys.
 ## Design Context
 
 Strategic design context lives in `PRODUCT.md` (register: product; users, personality,
-anti-references, design principles). Read it before any UI/design work. Personality is
-"quiet workshop" — chrome recedes, the A5 page is the star — but the **current CSS
-execution is slated for redesign**; treat `src/style.css` as legacy to improve, not a
-system to preserve. No DESIGN.md yet — generate one (`/impeccable document`) only after
-the redesign lands.
+anti-references, design principles); the visual system is documented in `DESIGN.md`
+("The Dim Print Shop": dark warm-gray `--ui-*` chrome + one brass accent around the lit
+A5 page). Read both before any UI/design work. The two token worlds never mix — flyer
+tokens style only `.page` and print output, `--ui-*` styles everything else.

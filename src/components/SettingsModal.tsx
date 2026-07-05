@@ -20,6 +20,8 @@ import {
   saveRelayUrl,
 } from '../lib/relayConfig'
 import { useIdentity } from '../hooks/useIdentity'
+import { useOrganizations, type Organization } from '../hooks/useOrganizations'
+import type { OrganizationId } from '../db/schema'
 
 // ── Flyer identity ────────────────────────────────────────
 // Organization + web printed on every flyer. Synced via Evolu (one shared
@@ -40,10 +42,11 @@ function IdentitySettings() {
 
   return (
     <>
-      <p className="modal-section-label">Údaje na letáku</p>
+      <p className="modal-section-label">Výchozí údaje na letáku</p>
       <p className="modal-hint">
-        Organizace a web se tisknou na každém letáku. Rok se doplňuje
-        automaticky podle poslední úpravy letáku.
+        Použijí se u letáků, které nejsou zařazené do žádného prostoru.
+        Organizace a web se tisknou na letáku; rok se doplňuje automaticky
+        podle poslední úpravy.
       </p>
       <form onSubmit={handleSave}>
         <div className="settings-grid">
@@ -63,6 +66,127 @@ function IdentitySettings() {
         <div className="settings-actions">
           <button type="submit" className="modal-restore-btn" disabled={!dirty}>
             Uložit
+          </button>
+        </div>
+      </form>
+    </>
+  )
+}
+
+// ── Workspaces / organizations ────────────────────────────
+// Each workspace carries its own printed identity (name + web). A concept
+// assigned to one is stamped with that org instead of the default identity
+// above. Managed here; switched in the sidebar.
+function OrgRow({ org, onSave, onDelete }: {
+  org: Organization
+  onSave: (patch: { name: string; web: string }) => void
+  onDelete: () => void
+}) {
+  const [name, setName] = useState(org.name)
+  const [web, setWeb] = useState(org.web)
+  const { confirm } = useConfirm()
+
+  const dirty = name.trim() !== org.name || web.trim() !== org.web
+  const canSave = dirty && name.trim().length > 0
+
+  async function handleDelete() {
+    const ok = await confirm({
+      title: 'Smazat prostor?',
+      message: `Prostor „${org.name}" bude odstraněn. Letáky v něm zůstanou zachovány a přejdou na výchozí údaje.`,
+      confirmLabel: 'Smazat',
+      cancelLabel: 'Zrušit',
+    })
+    if (ok) onDelete()
+  }
+
+  return (
+    <div className="org-row">
+      <input
+        className="settings-input"
+        placeholder="název prostoru"
+        value={name}
+        onChange={e => setName(e.target.value)}
+      />
+      <input
+        className="settings-input"
+        placeholder="web (example.cz)"
+        value={web}
+        onChange={e => setWeb(e.target.value)}
+      />
+      <button
+        className="org-row-save"
+        disabled={!canSave}
+        onClick={() => onSave({ name: name.trim(), web: web.trim() })}
+        title="Uložit změny"
+      >
+        Uložit
+      </button>
+      <button className="org-row-delete" onClick={handleDelete} title="Smazat prostor">✕</button>
+    </div>
+  )
+}
+
+function OrganizationsSettings() {
+  const { organizations, createOrg, updateOrg, deleteOrg } = useOrganizations()
+  const { showToast } = useToast()
+  const [newName, setNewName] = useState('')
+  const [newWeb, setNewWeb] = useState('')
+
+  function handleAdd(e: React.FormEvent) {
+    e.preventDefault()
+    const name = newName.trim()
+    if (!name) return
+    createOrg(name, newWeb.trim())
+    setNewName('')
+    setNewWeb('')
+    showToast({ message: `Prostor „${name}" vytvořen.` })
+  }
+
+  return (
+    <>
+      <p className="modal-section-label" style={{ marginTop: 20 }}>Prostory (organizace)</p>
+      <p className="modal-hint">
+        Rozdělte letáky podle organizace. Každý prostor má vlastní název a web,
+        které se tisknou na letácích v něm. Přepínat je můžete v levém panelu.
+      </p>
+
+      {organizations.length > 0 && (
+        <div className="org-list">
+          {organizations.map(o => (
+            <OrgRow
+              key={o.id}
+              org={o}
+              onSave={patch => {
+                updateOrg(o.id as OrganizationId, patch)
+                showToast({ message: 'Prostor uložen.' })
+              }}
+              onDelete={() => {
+                deleteOrg(o.id as OrganizationId)
+                showToast({ message: `Prostor „${o.name}" smazán.` })
+              }}
+            />
+          ))}
+        </div>
+      )}
+
+      <form onSubmit={handleAdd} className="org-add">
+        <div className="settings-grid">
+          <input
+            className="settings-input"
+            placeholder="název nového prostoru"
+            value={newName}
+            onChange={e => setNewName(e.target.value)}
+          />
+          <input
+            className="settings-input"
+            placeholder="web (example.cz)"
+            value={newWeb}
+            onChange={e => setNewWeb(e.target.value)}
+          />
+        </div>
+        <div className="settings-actions">
+          <button type="submit" className="modal-close-btn" disabled={!newName.trim()}>
+            Přidat prostor
           </button>
         </div>
       </form>
@@ -342,9 +466,14 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
       <div className="modal" onClick={e => e.stopPropagation()}>
         <div className="modal-title">Nastavení</div>
 
-        {/* ── Flyer identity ── */}
+        {/* ── Flyer identity (default) ── */}
         <Suspense fallback={<p className="modal-hint">Načítání…</p>}>
           <IdentitySettings />
+        </Suspense>
+
+        {/* ── Workspaces / organizations ── */}
+        <Suspense fallback={<p className="modal-hint">Načítání…</p>}>
+          <OrganizationsSettings />
         </Suspense>
 
         {/* ── Mnemonic display ── */}

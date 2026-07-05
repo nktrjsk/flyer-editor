@@ -27,6 +27,10 @@ const AppSettingId = id('AppSetting')
 type AppSettingId = typeof AppSettingId.Type
 export type { AppSettingId }
 
+const OrganizationId = id('Organization')
+type OrganizationId = typeof OrganizationId.Type
+export type { OrganizationId }
+
 // ── Schema ────────────────────────────────────────────────
 // Logos are stored in a dedicated conceptLogo table and referenced by ID so
 // that many snapshots of the same concept can share one logo row without
@@ -51,6 +55,10 @@ const Schema = {
     // (`flyers/<publishId>/`) and the version lineage in frontmatter, so a
     // wipe-and-reimport re-attaches to the same lineage instead of forking it.
     publishId: nullOr(EvoluString),
+    // Workspace this flyer belongs to. null = unassigned (legacy concepts, or
+    // created outside any workspace) → org/web fall back to the shared
+    // appSetting identity, then the legacy per-concept org/web columns.
+    organizationId: nullOr(OrganizationId),
   },
   conceptSnapshot: {
     id: ConceptSnapshotId,
@@ -80,6 +88,14 @@ const Schema = {
     org: nullOr(EvoluString),
     web: nullOr(EvoluString),
   },
+  // Workspaces / tenants. Each carries its own printed identity (name + web);
+  // a concept referencing one is stamped with that org's name/web instead of
+  // the shared appSetting. Syncs with the mnemonic like everything else.
+  organization: {
+    id: OrganizationId,
+    name: EvoluString,
+    web: nullOr(EvoluString),
+  },
 }
 
 // ── Evolu instance ────────────────────────────────────────
@@ -98,11 +114,11 @@ export const evolu = createEvolu(evoluReactWebDeps)(Schema, {
 export const useEvolu = createUseEvolu(evolu)
 
 // ── Queries ───────────────────────────────────────────────
-/** Concept list for the sidebar — id + title only, ordered newest first */
+/** Concept list for the sidebar — id + title + workspace, ordered newest first */
 export const allConceptsQuery = evolu.createQuery(db =>
   db
     .selectFrom('concept')
-    .select(['id', 'title', 'reviewStatus', 'createdAt'])
+    .select(['id', 'title', 'reviewStatus', 'organizationId', 'createdAt'])
     .where('isDeleted', 'is not', sqliteTrue)
     .orderBy('createdAt', 'desc'),
 )
@@ -167,6 +183,15 @@ export const appSettingQuery = evolu.createQuery(db =>
     .where('isDeleted', 'is not', sqliteTrue)
     .orderBy('updatedAt', 'desc')
     .limit(1),
+)
+
+/** All workspaces / organizations, oldest first (stable switcher order) */
+export const allOrganizationsQuery = evolu.createQuery(db =>
+  db
+    .selectFrom('organization')
+    .select(['id', 'name', 'web'])
+    .where('isDeleted', 'is not', sqliteTrue)
+    .orderBy('createdAt', 'asc'),
 )
 
 /** No-op snapshot query — placeholder when conceptId is null */

@@ -824,6 +824,48 @@ body {
   overflow: hidden;
 }
 
+/* Workspace switcher — a standard select; chrome-styled, brass on focus */
+.sidebar-workspace {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 14px 16px 4px;
+  flex-shrink: 0;
+}
+.sidebar-workspace-label {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ui-text-3);
+}
+.sidebar-workspace-select {
+  background: var(--ui-surface);
+  border: 1px solid var(--ui-border);
+  border-radius: 6px;
+  color: var(--ui-text);
+  font-family: var(--ui-font);
+  font-size: 0.875rem;
+  font-weight: 500;
+  padding: 7px 10px;
+  cursor: pointer;
+  outline: none;
+  width: 100%;
+  transition: border-color 0.15s, background 0.15s;
+}
+.sidebar-workspace-select:hover { background: var(--ui-surface-hover); }
+.sidebar-workspace-select:focus-visible {
+  outline: 2px solid var(--ui-accent);
+  outline-offset: 2px;
+}
+
+.sidebar-empty {
+  padding: 12px 12px 8px;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  color: var(--ui-text-3);
+}
+
 .sidebar-header {
   padding: 14px 16px 10px;
   display: flex;
@@ -1264,6 +1306,50 @@ body {
   gap: 8px;
   flex-wrap: wrap;
 }
+
+/* ── Workspaces / organizations manager ───────────────────── */
+.org-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.org-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto auto;
+  gap: 8px;
+  align-items: center;
+}
+.org-row-save {
+  background: var(--ui-surface);
+  border: 1px solid var(--ui-border);
+  border-radius: 6px;
+  color: var(--ui-text-2);
+  font-family: var(--ui-font);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  padding: 8px 12px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s, color 0.15s;
+}
+.org-row-save:hover:not(:disabled) {
+  background: var(--ui-surface-hover);
+  color: var(--ui-text);
+}
+.org-row-save:disabled { opacity: 0.4; cursor: not-allowed; }
+.org-row-delete {
+  background: none;
+  border: none;
+  color: var(--ui-text-3);
+  font-size: 0.875rem;
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 4px;
+  transition: color 0.15s;
+}
+.org-row-delete:hover { color: var(--ui-danger); }
+.org-add { margin-top: 4px; }
 
 /* ── Toast notifications ──────────────────────────────────── */
 .toast-stack {
