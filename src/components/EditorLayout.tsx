@@ -1,8 +1,9 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { ConceptMeta, SnapshotContent, Palette, Proposal, Decision } from '../types'
 import { writeEditorCache } from '../lib/editorCache'
 import { useConcepts } from '../hooks/useConcepts'
 import { useActiveConcept } from '../hooks/useActiveConcept'
+import { useIdentity } from '../hooks/useIdentity'
 import { useAutoSave } from '../hooks/useAutoSave'
 import { useSnapshots } from '../hooks/useSnapshots'
 import { useAiBridge } from '../hooks/useAiBridge'
@@ -27,11 +28,12 @@ interface EditorLayoutProps {
 /**
  * Serialize the editable content of a concept for change detection. Covers
  * exactly the columns useAutoSave writes — row-only fields (reviewStatus,
- * publishId) are excluded so they never trigger a spurious adoption.
+ * publishId) and the auto-derived org/year/web are excluded so they never
+ * trigger a spurious adoption.
  */
 function contentKey(meta: ConceptMeta, markdown: string): string {
   return JSON.stringify([
-    meta.title, meta.org, meta.year, meta.web, meta.fontSize,
+    meta.title, meta.fontSize,
     meta.logo, meta.logoId, meta.palette, markdown,
   ])
 }
@@ -121,6 +123,24 @@ export default function EditorLayout({ onSnapshotReady, onPublishReady }: Editor
 
   useAutoSave(activeId, meta, markdown, syncedId === activeId)
 
+  // Auto-derived flyer fields: org/web come from the shared identity setting
+  // (Nastavení), falling back to the legacy per-concept columns for concepts
+  // created before the setting existed; year is the year of the last edit
+  // (updatedAt is a system column Evolu bumps on every row change). Everything
+  // that *renders or captures* the flyer uses effectiveMeta; only the truly
+  // editable fields live in `meta` state and get auto-saved.
+  const identity = useIdentity()
+  const rowStamp = activeRow?.updatedAt ?? activeRow?.createdAt ?? null
+  const autoYear = String(
+    (rowStamp ? new Date(String(rowStamp)) : new Date()).getFullYear(),
+  )
+  const effectiveMeta = useMemo<ConceptMeta>(() => ({
+    ...meta,
+    org: identity.org ?? meta.org,
+    web: identity.web ?? meta.web,
+    year: autoYear,
+  }), [meta, identity.org, identity.web, autoYear])
+
   // Persist the visible editor state so the next load can paint a populated
   // placeholder instead of an empty editor. Only cache once local state is
   // synced to the active concept, so we never store a stale/mismatched flyer.
@@ -132,12 +152,14 @@ export default function EditorLayout({ onSnapshotReady, onPublishReady }: Editor
         id: c.id,
         title: c.title ?? '',
       })),
-      meta,
+      meta: effectiveMeta,
       markdown,
     })
-  }, [activeId, concepts, meta, markdown, syncedId])
+  }, [activeId, concepts, effectiveMeta, markdown, syncedId])
 
-  const { saveAutoSnapshot, saveManualSnapshot } = useSnapshots(activeId, meta, markdown)
+  // Snapshots capture effectiveMeta so history renders the flyer as it truly
+  // looked — including the auto org/web/year of that moment.
+  const { saveAutoSnapshot, saveManualSnapshot } = useSnapshots(activeId, effectiveMeta, markdown)
 
   const conceptList = concepts.map((c: { id: ConceptId; title: string | null }) => ({
     id: c.id as string,
@@ -176,12 +198,12 @@ export default function EditorLayout({ onSnapshotReady, onPublishReady }: Editor
       const facts = readPreviewFacts()
       return {
         meta: {
-          title: meta.title,
-          org: meta.org,
-          year: meta.year,
-          web: meta.web,
-          fontSize: meta.fontSize,
-          palette: meta.palette,
+          title: effectiveMeta.title,
+          org: effectiveMeta.org,
+          year: effectiveMeta.year,
+          web: effectiveMeta.web,
+          fontSize: effectiveMeta.fontSize,
+          palette: effectiveMeta.palette,
         },
         markdown,
         pages: facts.pages,
@@ -195,13 +217,16 @@ export default function EditorLayout({ onSnapshotReady, onPublishReady }: Editor
     list_concepts: () => conceptList,
     get_screenshot: () => captureFlyerPng(),
     propose_changes: (args: Record<string, unknown>) => {
-      const known = ['markdown', 'title', 'org', 'year', 'web', 'fontSize', 'palette']
-      if (!known.some(k => k in args)) throw new Error('Nebyla zadána žádná změna.')
-      const nextMeta: ConceptMeta = { ...meta }
+      // org/year/web are auto-derived now (identity setting + last-edit date);
+      // proposals for them are ignored so an accepted edit can't clobber them.
+      const known = ['markdown', 'title', 'fontSize', 'palette']
+      if (!known.some(k => k in args)) {
+        throw new Error(
+          'Nebyla zadána žádná změna. (org/web se nastavují v Nastavení a rok je automatický — navrhnout lze markdown, title, fontSize a palette.)',
+        )
+      }
+      const nextMeta: ConceptMeta = { ...effectiveMeta }
       if ('title' in args) nextMeta.title = String(args.title ?? '')
-      if ('org' in args) nextMeta.org = String(args.org ?? '')
-      if ('year' in args) nextMeta.year = String(args.year ?? '')
-      if ('web' in args) nextMeta.web = String(args.web ?? '')
       if ('fontSize' in args) {
         const n = Number(args.fontSize)
         if (!Number.isNaN(n)) nextMeta.fontSize = n
@@ -402,12 +427,11 @@ export default function EditorLayout({ onSnapshotReady, onPublishReady }: Editor
 
     if (!ok) return
 
+    // org/year/web are NOT restored: org/web live in the identity setting and
+    // year derives from the last-edit date — a restore shouldn't clobber them.
     const restoredMeta: ConceptMeta = {
       ...meta,
       title:    content.title,
-      org:      content.org,
-      year:     content.year,
-      web:      content.web,
       fontSize: content.fontSize,
       palette:  (content.palette as Palette | null) ?? 'color',
       // Only restore logo if the snapshot has one; old snapshots (logoId=null)
@@ -438,7 +462,7 @@ export default function EditorLayout({ onSnapshotReady, onPublishReady }: Editor
   async function handlePublish() {
     const cfg = loadPublishConfig()
     if (!isConfigured(cfg)) {
-      showToast({ message: 'Nejdřív nastavte GitHub repozitář v ⚙ Nastavení.' })
+      showToast({ message: 'Nejdřív nastavte GitHub repozitář v Nastavení.' })
       return
     }
     if (!activeId) return
@@ -458,7 +482,7 @@ export default function EditorLayout({ onSnapshotReady, onPublishReady }: Editor
     }
 
     try {
-      const res = await publishConcept(cfg, { publishId, meta, markdown })
+      const res = await publishConcept(cfg, { publishId, meta: effectiveMeta, markdown })
       showToast({
         message: `Publikováno jako v${res.version}.`,
         action: { label: 'Otevřít', onClick: () => window.open(res.url, '_blank', 'noopener') },
@@ -492,11 +516,15 @@ export default function EditorLayout({ onSnapshotReady, onPublishReady }: Editor
         onLogoChange={handleLogoChange}
         onMarkdownChange={setMarkdown}
       />
-      <PreviewPane meta={meta} markdown={markdown} />
+      <PreviewPane
+        meta={effectiveMeta}
+        markdown={markdown}
+        onTitleChange={title => handleMetaChange({ title })}
+      />
       {pendingProposal && (
         <ProposalReview
           proposal={pendingProposal}
-          currentMeta={meta}
+          currentMeta={effectiveMeta}
           currentMarkdown={markdown}
           onAccept={acceptProposal}
           onReject={rejectProposal}

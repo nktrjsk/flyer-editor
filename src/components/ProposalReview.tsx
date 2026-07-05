@@ -11,11 +11,10 @@ interface ProposalReviewProps {
   onReject: (reason?: string) => void
 }
 
+// org/year/web are auto-derived (identity setting + last-edit date), so
+// proposals can't change them and they never appear in the diff.
 const META_FIELDS: Array<[keyof ConceptMeta, string]> = [
   ['title', 'Název'],
-  ['org', 'Organizace'],
-  ['year', 'Rok'],
-  ['web', 'Web'],
   ['fontSize', 'Velikost písma'],
   ['palette', 'Barevnost'],
 ]

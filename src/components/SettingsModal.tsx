@@ -1,4 +1,5 @@
 import { Suspense, use, useState } from 'react'
+import { Eye, EyeOff } from 'lucide-react'
 import { Mnemonic, formatMnemonicError } from '@evolu/common'
 import { useQuery } from '@evolu/react'
 import { useEvolu, allConceptPublishIdsQuery, type ConceptLogoId } from '../db/schema'
@@ -18,15 +19,68 @@ import {
   loadRelayUrl,
   saveRelayUrl,
 } from '../lib/relayConfig'
+import { useIdentity } from '../hooks/useIdentity'
+
+// ── Flyer identity ────────────────────────────────────────
+// Organization + web printed on every flyer. Synced via Evolu (one shared
+// row), so setting it once covers all devices. Suspends on the query.
+function IdentitySettings() {
+  const identity = useIdentity()
+  const { showToast } = useToast()
+  const [org, setOrg] = useState(identity.org ?? '')
+  const [web, setWeb] = useState(identity.web ?? '')
+
+  const dirty = org.trim() !== (identity.org ?? '') || web.trim() !== (identity.web ?? '')
+
+  function handleSave(e: React.FormEvent) {
+    e.preventDefault()
+    identity.save(org.trim(), web.trim())
+    showToast({ message: 'Údaje na letáku uloženy.' })
+  }
+
+  return (
+    <>
+      <p className="modal-section-label">Údaje na letáku</p>
+      <p className="modal-hint">
+        Organizace a web se tisknou na každém letáku. Rok se doplňuje
+        automaticky podle poslední úpravy letáku.
+      </p>
+      <form onSubmit={handleSave}>
+        <div className="settings-grid">
+          <input
+            className="settings-input"
+            placeholder="organizace"
+            value={org}
+            onChange={e => setOrg(e.target.value)}
+          />
+          <input
+            className="settings-input"
+            placeholder="web (example.cz)"
+            value={web}
+            onChange={e => setWeb(e.target.value)}
+          />
+        </div>
+        <div className="settings-actions">
+          <button type="submit" className="modal-restore-btn" disabled={!dirty}>
+            Uložit
+          </button>
+        </div>
+      </form>
+    </>
+  )
+}
 
 // ── Mnemonic display ──────────────────────────────────────
 // Suspends until appOwner is available (OPFS/worker init).
+// Hidden by default: the words never reach the DOM until revealed, so an
+// open Settings modal is safe on a shared screen. Copy works while hidden.
 function MnemonicPanel() {
   const evolu = useEvolu()
   const appOwner = use(evolu.appOwner)
   const mnemonic = appOwner.mnemonic ?? ''
   const words = mnemonic ? mnemonic.split(' ') : []
   const [copied, setCopied] = useState(false)
+  const [revealed, setRevealed] = useState(false)
 
   if (words.length === 0) {
     return <p className="modal-hint">Fráze není dostupná.</p>
@@ -41,17 +95,40 @@ function MnemonicPanel() {
 
   return (
     <>
-      <div className="mnemonic-words">
-        {words.map((word, i) => (
-          <span key={i} className="mnemonic-word">
-            <span className="mnemonic-word-index">{i + 1}.</span>
-            {word}
-          </span>
-        ))}
+      {revealed ? (
+        <div className="mnemonic-words">
+          {words.map((word, i) => (
+            <span key={i} className="mnemonic-word">
+              <span className="mnemonic-word-index">{i + 1}.</span>
+              {word}
+            </span>
+          ))}
+        </div>
+      ) : (
+        // Fixed-width masks — real word lengths never render.
+        <div className="mnemonic-words mnemonic-words--hidden" aria-hidden="true">
+          {words.map((_, i) => (
+            <span key={i} className="mnemonic-word">
+              <span className="mnemonic-word-index">{i + 1}.</span>
+              •••••
+            </span>
+          ))}
+        </div>
+      )}
+      <div className="mnemonic-actions">
+        <button
+          className="mnemonic-copy-btn"
+          onClick={() => setRevealed(r => !r)}
+          aria-pressed={revealed}
+        >
+          {revealed
+            ? <><EyeOff size={13} strokeWidth={1.8} aria-hidden="true" />Skrýt</>
+            : <><Eye size={13} strokeWidth={1.8} aria-hidden="true" />Zobrazit frázi</>}
+        </button>
+        <button className="mnemonic-copy-btn" onClick={handleCopy}>
+          {copied ? '✓ Zkopírováno' : 'Kopírovat frázi'}
+        </button>
       </div>
-      <button className="mnemonic-copy-btn" onClick={handleCopy}>
-        {copied ? '✓ Zkopírováno' : 'Kopírovat frázi'}
-      </button>
     </>
   )
 }
@@ -263,10 +340,15 @@ export default function SettingsModal({ onClose }: SettingsModalProps) {
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal" onClick={e => e.stopPropagation()}>
-        <div className="modal-title">Synchronizace</div>
+        <div className="modal-title">Nastavení</div>
+
+        {/* ── Flyer identity ── */}
+        <Suspense fallback={<p className="modal-hint">Načítání…</p>}>
+          <IdentitySettings />
+        </Suspense>
 
         {/* ── Mnemonic display ── */}
-        <p className="modal-section-label">Zálohovací fráze</p>
+        <p className="modal-section-label" style={{ marginTop: 20 }}>Zálohovací fráze</p>
         <p className="modal-hint">
           Zapište si tato slova. Slouží k obnovení dat na novém zařízení.
         </p>

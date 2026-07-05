@@ -1,3 +1,4 @@
+import { Contrast, Palette as PaletteIcon } from 'lucide-react'
 import type { ConceptMeta } from '../types'
 
 interface MetaSectionProps {
@@ -6,6 +7,8 @@ interface MetaSectionProps {
   onLogoChange: (data: string) => void
 }
 
+// Title is edited directly on the page; org/web live in Nastavení and the
+// year derives from the last edit — so only the true per-flyer knobs remain.
 export default function MetaSection({ meta, onChange, onLogoChange }: MetaSectionProps) {
   function handleLogo(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
@@ -18,30 +21,6 @@ export default function MetaSection({ meta, onChange, onLogoChange }: MetaSectio
   return (
     <div className="meta-section">
       <div className="meta-field">
-        <label>Název</label>
-        <input
-          type="text"
-          value={meta.title}
-          onChange={e => onChange({ title: e.target.value })}
-        />
-      </div>
-      <div className="meta-field">
-        <label>Organizace</label>
-        <input
-          type="text"
-          value={meta.org}
-          onChange={e => onChange({ org: e.target.value })}
-        />
-      </div>
-      <div className="meta-field">
-        <label>Rok</label>
-        <input
-          type="text"
-          value={meta.year}
-          onChange={e => onChange({ year: e.target.value })}
-        />
-      </div>
-      <div className="meta-field">
         <label>Písmo (pt)</label>
         <input
           type="number"
@@ -52,29 +31,7 @@ export default function MetaSection({ meta, onChange, onLogoChange }: MetaSectio
           onChange={e => onChange({ fontSize: parseFloat(e.target.value) || 9.5 })}
         />
       </div>
-      <div className="meta-field" style={{ gridColumn: '1 / -1' }}>
-        <label>Web / odkaz</label>
-        <input
-          type="text"
-          placeholder="example.cz"
-          value={meta.web}
-          onChange={e => onChange({ web: e.target.value })}
-        />
-      </div>
-      <div className="meta-field" style={{ gridColumn: '1 / -1' }}>
-        <label>Barevnost</label>
-        <div className="palette-toggle">
-          <button
-            className={`palette-btn${meta.palette === 'color' ? ' active' : ''}`}
-            onClick={() => onChange({ palette: 'color' })}
-          >🎨 Barevný</button>
-          <button
-            className={`palette-btn${meta.palette === 'bw' ? ' active' : ''}`}
-            onClick={() => onChange({ palette: 'bw' })}
-          >⬛ Černobílý</button>
-        </div>
-      </div>
-      <div className="meta-field" style={{ gridColumn: '1 / -1' }}>
+      <div className="meta-field">
         <label>Logo</label>
         <div className="logo-input-row">
           <label className="logo-btn" htmlFor="meta-logo">Vybrat soubor</label>
@@ -83,6 +40,25 @@ export default function MetaSection({ meta, onChange, onLogoChange }: MetaSectio
           {meta.logo && (
             <button className="logo-clear" onClick={() => onLogoChange('')}>✕</button>
           )}
+        </div>
+      </div>
+      <div className="meta-field" style={{ gridColumn: '1 / -1' }}>
+        <label>Barevnost</label>
+        <div className="palette-toggle">
+          <button
+            className={`palette-btn${meta.palette === 'color' ? ' active' : ''}`}
+            onClick={() => onChange({ palette: 'color' })}
+          >
+            <PaletteIcon size={15} strokeWidth={1.8} aria-hidden="true" />
+            Barevný
+          </button>
+          <button
+            className={`palette-btn${meta.palette === 'bw' ? ' active' : ''}`}
+            onClick={() => onChange({ palette: 'bw' })}
+          >
+            <Contrast size={15} strokeWidth={1.8} aria-hidden="true" />
+            Černobílý
+          </button>
         </div>
       </div>
     </div>

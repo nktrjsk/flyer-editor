@@ -24,30 +24,19 @@ export default function LabelModal({ onConfirm, onClose }: LabelModalProps) {
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal" onClick={e => e.stopPropagation()} style={{ width: 380, gap: 16 }}>
+      <div className="modal modal--narrow" onClick={e => e.stopPropagation()}>
         <div className="modal-title">Uložit zálohu</div>
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <form className="modal-form" onSubmit={handleSubmit}>
           <input
             ref={inputRef}
             type="text"
-            className="meta-field input"
+            className="modal-input"
             placeholder="Název zálohy (volitelné)"
             value={value}
             onChange={e => setValue(e.target.value)}
             onKeyDown={handleKeyDown}
-            style={{
-              background: '#232629',
-              border: '1px solid #3a3d3f',
-              borderRadius: 3,
-              color: '#ccc9c2',
-              fontFamily: 'ui-monospace, Consolas, monospace',
-              fontSize: '11.5px',
-              padding: '6px 10px',
-              outline: 'none',
-              width: '100%',
-            }}
           />
-          <div className="modal-footer" style={{ justifyContent: 'space-between', paddingTop: 0, borderTop: 'none' }}>
+          <div className="modal-footer modal-footer--split">
             <button type="button" className="modal-close-btn" onClick={onClose}>Zrušit</button>
             <button type="submit" className="modal-close-btn">Uložit</button>
           </div>

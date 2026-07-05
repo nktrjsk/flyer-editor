@@ -22,7 +22,7 @@ const TITLES: Record<ReturnType<typeof useSyncStatus>, string> = {
   online:
     `Synchronizační server (${relayUrl}) je dosažitelný. ` +
     'Pokud se data přesto nesynchronizují, zařízení nesdílejí stejnou ' +
-    'zálohovací frázi — porovnejte ji v ⚙ Nastavení.',
+    'zálohovací frázi — porovnejte ji v Nastavení.',
   offline:
     `Synchronizační server (${relayUrl}) není dosažitelný — úpravy ` +
     'zůstávají jen v tomto prohlížeči. Zkontrolujte připojení, VPN, firewall ' +

@@ -46,7 +46,7 @@ export function ConfirmProvider({ children }: { children: React.ReactNode }) {
           <div className="modal confirm-modal" onClick={e => e.stopPropagation()}>
             <div className="modal-title">{state.title}</div>
             <p className="modal-hint">{state.message}</p>
-            <div className="modal-footer" style={{ justifyContent: 'space-between', paddingTop: 0, borderTop: 'none' }}>
+            <div className="modal-footer modal-footer--split">
               <button className="modal-close-btn" onClick={() => handleChoice(false)}>
                 {state.cancelLabel ?? 'Zrušit'}
               </button>

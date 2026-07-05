@@ -39,10 +39,16 @@ export default function AiConnect() {
 
   const enabled = isEnabled()
   const label =
-    status === 'connected' ? (autoAccept ? '🟢 AI připojeno · ⚡ auto' : '🟢 AI připojeno')
-    : status === 'connecting' ? '🟡 připojování…'
-    : enabled ? '🔴 AI nepřipojeno'
-    : '🤖 Připojit k AI'
+    status === 'connected' ? (autoAccept ? 'AI připojeno · auto' : 'AI připojeno')
+    : status === 'connecting' ? 'Připojování…'
+    : enabled ? 'AI nepřipojeno'
+    : 'Připojit k AI'
+  // Idle (bridge never enabled) shows no dot — there is no state to report.
+  const dotState =
+    status === 'connected' ? 'connected'
+    : status === 'connecting' ? 'connecting'
+    : enabled ? 'disconnected'
+    : null
 
   return (
     <div className="ai-connect" ref={wrapRef}>
@@ -51,6 +57,7 @@ export default function AiConnect() {
         onClick={() => setOpen(o => !o)}
         title="Připojení k AI"
       >
+        {dotState && <span className={`ai-connect-dot ai-connect-dot--${dotState}`} aria-hidden="true" />}
         {label}
       </button>
       {open && (
@@ -71,7 +78,7 @@ export default function AiConnect() {
                 onChange={e => setAutoAcceptEdits(e.target.checked)}
               />
               <span className="ai-connect-auto-text">
-                <strong>⚡ Automaticky přijímat úpravy</strong>
+                <strong>Automaticky přijímat úpravy</strong>
                 <small>
                   Úpravy aktivního letáku se použijí bez potvrzení (jde vrátit zpět).
                   Nové letáky, přepnutí a mazání se stále potvrzují ručně. Vypne se při odpojení.

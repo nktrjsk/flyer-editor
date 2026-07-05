@@ -151,7 +151,7 @@ export default function HistoryExplorer({ activeId, onRestore, onClose }: Histor
               </div>
             ))}
             {snapshots.length === 0 && (
-              <div style={{ padding: '14px', fontSize: '10px', color: '#555' }}>
+              <div className="history-explorer-empty">
                 Žádné zálohy
               </div>
             )}
@@ -175,7 +175,7 @@ export default function HistoryExplorer({ activeId, onRestore, onClose }: Histor
                 </button>
               </>
             ) : (
-              <div style={{ color: '#555', fontSize: '10px', padding: '14px' }}>
+              <div className="history-explorer-empty">
                 Vyberte zálohu ze seznamu
               </div>
             )}

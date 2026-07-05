@@ -15,19 +15,22 @@
   <script src="/coi-serviceworker.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,600;1,9..144,300&family=Crimson+Pro:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+  <!-- Fraunces + Crimson Pro render the flyer page; Source Sans 3 is the
+       editor chrome's single UI family. -->
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,600;1,9..144,300&family=Crimson+Pro:ital,wght@0,400;0,600;1,400&family=Source+Sans+3:ital,wght@0,400..700;1,400&display=swap" rel="stylesheet">
   <!-- Static layout frame painted before the JS bundle + style.css load, so the
        first paint is the editor's shape (not a black/white screen or spinner).
        It flows seamlessly into the React placeholder, which React mounts in
        place of #root's contents. No animation — nothing to distract. -->
   <style>
-    html, body { height: 100%; margin: 0; background: #191c1e; }
+    /* Hex mirrors of the --ui-* OKLCH tokens in style.css (pre-CSS paint). */
+    html, body { height: 100%; margin: 0; background: #25221f; }
     #initial-loader { display: flex; flex-direction: column; height: 100%; }
-    #initial-loader .il-toolbar { height: 44px; background: #1d6a5e; flex: none; }
+    #initial-loader .il-toolbar { height: 52px; background: #25221f; border-bottom: 1px solid #4b4741; flex: none; box-sizing: border-box; }
     #initial-loader .il-body { flex: 1; display: flex; min-height: 0; }
-    #initial-loader .il-sidebar { width: 220px; background: #141618; }
-    #initial-loader .il-source { width: 400px; background: #191c1e; }
-    #initial-loader .il-preview { flex: 1; background: #bfbcb4; }
+    #initial-loader .il-sidebar { width: 280px; background: #25221f; border-right: 1px solid #4b4741; box-sizing: border-box; }
+    #initial-loader .il-source { width: 420px; background: #2b2825; border-right: 1px solid #4b4741; box-sizing: border-box; }
+    #initial-loader .il-preview { flex: 1; background: #1d1a15; }
   </style>
 </head>
 <body>
@@ -57,11 +60,11 @@
         var el = document.getElementById('initial-loader');
         if (!el) return;
         el.innerHTML =
-          '<div style="margin:auto;max-width:340px;text-align:center;color:#ccc9c2;font-family:Georgia,serif;padding:24px">' +
-          '<p style="font-size:17px;font-weight:600;color:#fff;margin:0 0 8px">Aplikaci se nepodařilo načíst</p>' +
-          '<p style="font-size:13px;color:#9a9690;line-height:1.5;margin:0 0 18px">Zkuste obnovit stránku. Pokud problém přetrvává, vymažte lokální data tohoto prohlížeče.</p>' +
-          '<button onclick="location.reload()" style="font-family:Georgia,serif;font-size:13px;padding:7px 16px;margin:0 5px;border-radius:4px;cursor:pointer;border:1px solid #3a3d3f;background:#2a2f31;color:#ccc9c2">Načíst znovu</button>' +
-          '<button onclick="window.__resetApp()" style="font-family:Georgia,serif;font-size:13px;padding:7px 16px;margin:0 5px;border-radius:4px;cursor:pointer;border:1px solid #633;background:#2a2f31;color:#f88">Vymazat data a obnovit</button>' +
+          '<div style="margin:auto;max-width:340px;text-align:center;color:#c3bdb3;font-family:system-ui,sans-serif;padding:24px">' +
+          '<p style="font-size:17px;font-weight:600;color:#ebe7df;margin:0 0 8px">Aplikaci se nepodařilo načíst</p>' +
+          '<p style="font-size:13px;color:#a39e95;line-height:1.5;margin:0 0 18px">Zkuste obnovit stránku. Pokud problém přetrvává, vymažte lokální data tohoto prohlížeče.</p>' +
+          '<button onclick="location.reload()" style="font-family:system-ui,sans-serif;font-size:13px;padding:8px 16px;margin:0 5px;border-radius:6px;cursor:pointer;border:1px solid #4b4741;background:#383530;color:#c3bdb3">Načíst znovu</button>' +
+          '<button onclick="window.__resetApp()" style="font-family:system-ui,sans-serif;font-size:13px;padding:8px 16px;margin:0 5px;border-radius:6px;cursor:pointer;border:1px solid #7a3a30;background:transparent;color:#f17264">Vymazat data a obnovit</button>' +
           '</div>';
       }, 12000);
     })();

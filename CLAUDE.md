@@ -28,15 +28,20 @@ Source lives in `src/`. Entry: `index.html` → `src/main.tsx` → `src/componen
 | `src/components/Sidebar.tsx`, `HistoryExplorer.tsx`, `HistoryPanel.tsx`, `DiffView.tsx` | Concept list + snapshot history/restore + line diffs. |
 | `src/components/SettingsModal.tsx` | Sync mnemonic display/restore. |
 | `src/components/ToastProvider.tsx`, `ConfirmProvider.tsx` | Toast + confirm primitives. |
-| `src/db/schema.ts` | Evolu schema (`concept`, `conceptSnapshot`, `conceptLogo`), the Evolu instance, and queries. |
-| `src/hooks/` | `useConcepts`, `useActiveConcept`, `useSnapshots`, `useAutoSave`, `useAiBridge`. |
+| `src/db/schema.ts` | Evolu schema (`concept`, `conceptSnapshot`, `conceptLogo`, `appSetting`), the Evolu instance, and queries. |
+| `src/hooks/` | `useConcepts`, `useActiveConcept`, `useSnapshots`, `useAutoSave`, `useAiBridge`, `useIdentity`. |
 | `src/lib/` | `diff`, `recovery`, `editorCache`, `aiBridge`, `flyerScreenshot`. |
 
-**Data model (`src/db/schema.ts`):** a `concept` row is the source of truth
-(title/org/year/web/fontSize/palette/markdown + logo). Logos live in a shared
-`conceptLogo` table referenced by `logoId` so many snapshots reuse one base64 payload
-(legacy inline `concept.logo` kept for back-compat). Snapshots are working history in
-Evolu — see the snapshot-overhaul design.
+**Data model (`src/db/schema.ts`):** a `concept` row is the source of truth for the
+editable fields (title/fontSize/palette/markdown + logo). Org/web come from the shared
+`appSetting` row (edited in Nastavení, synced via Evolu; legacy per-concept org/web
+columns are the fallback for pre-setting concepts) and year derives from the concept's
+`updatedAt` — EditorLayout composes these into `effectiveMeta` for rendering, snapshots,
+and publish; restores and AI proposals can't change them. The title is edited directly
+on the page (contenteditable in `Page.tsx`). Logos live in a shared `conceptLogo` table
+referenced by `logoId` so many snapshots reuse one base64 payload (legacy inline
+`concept.logo` kept for back-compat). Snapshots are working history in Evolu — see the
+snapshot-overhaul design.
 
 **Cross-origin isolation:** Evolu's SQLite-wasm needs `SharedArrayBuffer`, which requires
 COOP/COEP headers. GitHub Pages can't set headers, so `coi-serviceworker` injects them
@@ -60,3 +65,12 @@ bundles only `src/`). Full spec: `docs/ai-bridge.md`; per-device setup: `bridge/
 
 GitHub Actions → GitHub Pages (`.github/workflows/deploy.yml`): `npm ci && npm run build`,
 publishes `dist/`. Push to `main` → auto-deploys.
+
+## Design Context
+
+Strategic design context lives in `PRODUCT.md` (register: product; users, personality,
+anti-references, design principles). Read it before any UI/design work. Personality is
+"quiet workshop" — chrome recedes, the A5 page is the star — but the **current CSS
+execution is slated for redesign**; treat `src/style.css` as legacy to improve, not a
+system to preserve. No DESIGN.md yet — generate one (`/impeccable document`) only after
+the redesign lands.

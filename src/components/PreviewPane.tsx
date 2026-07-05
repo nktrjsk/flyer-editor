@@ -5,6 +5,9 @@ import Page from './Page'
 interface PreviewPaneProps {
   meta: ConceptMeta
   markdown: string
+  /** Enables in-place title editing — passed only by the live editor, never
+      by read-only previews (history explorer, boot placeholder). */
+  onTitleChange?: (title: string) => void
 }
 
 function fitTitles(pane: HTMLElement) {
@@ -51,7 +54,7 @@ function markOverflow(pane: HTMLElement) {
   pane.classList.toggle('has-overflow', anyOverflow)
 }
 
-export default function PreviewPane({ meta, markdown }: PreviewPaneProps) {
+export default function PreviewPane({ meta, markdown, onTitleChange }: PreviewPaneProps) {
   const paneRef = useRef<HTMLDivElement>(null)
   const fontsReady = useRef(false)
 
@@ -85,6 +88,7 @@ export default function PreviewPane({ meta, markdown }: PreviewPaneProps) {
           isFirst={i === 0}
           pageIndex={i}
           total={sections.length}
+          onTitleChange={onTitleChange}
         />
       ))}
     </div>

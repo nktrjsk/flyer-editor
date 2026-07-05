@@ -23,6 +23,10 @@ const ConceptLogoId = id('ConceptLogo')
 type ConceptLogoId = typeof ConceptLogoId.Type
 export type { ConceptLogoId }
 
+const AppSettingId = id('AppSetting')
+type AppSettingId = typeof AppSettingId.Type
+export type { AppSettingId }
+
 // ── Schema ────────────────────────────────────────────────
 // Logos are stored in a dedicated conceptLogo table and referenced by ID so
 // that many snapshots of the same concept can share one logo row without
@@ -66,6 +70,15 @@ const Schema = {
   conceptLogo: {
     id: ConceptLogoId,
     data: EvoluString,               // base64 data URL; never deleted (snapshots reference it)
+  },
+  // Shared flyer identity: organization + web printed on every flyer. One
+  // logical row (newest wins); lives in Evolu so it syncs with the mnemonic.
+  // The per-concept org/web columns above stay as a legacy fallback for
+  // concepts created before this table existed.
+  appSetting: {
+    id: AppSettingId,
+    org: nullOr(EvoluString),
+    web: nullOr(EvoluString),
   },
 }
 
@@ -145,6 +158,16 @@ export const snapshotsByConceptQuery = (conceptId: ConceptId) =>
       .where('conceptSnapshot.isDeleted', 'is not', sqliteTrue)
       .orderBy('conceptSnapshot.createdAt', 'desc'),
   )
+
+/** Shared flyer identity (org + web) — single logical row, newest wins */
+export const appSettingQuery = evolu.createQuery(db =>
+  db
+    .selectFrom('appSetting')
+    .select(['id', 'org', 'web'])
+    .where('isDeleted', 'is not', sqliteTrue)
+    .orderBy('updatedAt', 'desc')
+    .limit(1),
+)
 
 /** No-op snapshot query — placeholder when conceptId is null */
 export const noSnapshotQuery = evolu.createQuery(db =>

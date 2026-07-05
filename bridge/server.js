@@ -161,15 +161,13 @@ const TOOLS = [
       'Navrhne úpravu aktivního letáku. Standardně NEZAPISUJE — uživatel ji potvrdí v editoru ' +
       '(vrátí "staged"). Má-li uživatel zapnutý režim automatického přijímání, úprava se použije ' +
       'rovnou (vrátí "auto-accepted") a await_decision není potřeba. ' +
-      'Předchozí nepotvrzený návrh je nahrazen. Vrať jen pole, která chceš změnit.',
+      'Předchozí nepotvrzený návrh je nahrazen. Vrať jen pole, která chceš změnit. ' +
+      'org/web/rok jsou automatické (Nastavení + datum úpravy) a navrhnout je nelze.',
     inputSchema: {
       type: 'object',
       properties: {
         markdown: { type: 'string', description: 'Celý nový markdown těla letáku.' },
         title: { type: 'string' },
-        org: { type: 'string' },
-        year: { type: 'string' },
-        web: { type: 'string' },
         fontSize: { type: 'number', description: 'Velikost písma v pt (např. 9.5).' },
         palette: { type: 'string', enum: ['color', 'bw'], description: 'Barevně nebo černobíle.' },
       },
@@ -181,15 +179,13 @@ const TOOLS = [
     description:
       'Navrhne vytvoření NOVÉHO letáku (konceptu) s volitelným obsahem a metadaty. ' +
       'NEVYTVÁŘÍ přímo — uživatel potvrdí v editoru; po potvrzení se nový leták rovnou otevře. ' +
-      'Vrať jen pole, která chceš nastavit; nezadaná zůstanou prázdná (rok = aktuální, písmo 9.5, barevně).',
+      'Vrať jen pole, která chceš nastavit; nezadaná zůstanou prázdná (písmo 9.5, barevně). ' +
+      'org/web/rok jsou automatické (Nastavení + datum úpravy).',
     inputSchema: {
       type: 'object',
       properties: {
         markdown: { type: 'string', description: 'Markdown těla nového letáku.' },
         title: { type: 'string' },
-        org: { type: 'string' },
-        year: { type: 'string' },
-        web: { type: 'string' },
         fontSize: { type: 'number', description: 'Velikost písma v pt (např. 9.5).' },
         palette: { type: 'string', enum: ['color', 'bw'], description: 'Barevně nebo černobíle.' },
       },

@@ -72,8 +72,8 @@ this app. The bridge therefore enforces, on every connection:
 |------|--------|
 | `get_state()` | Returns live editor state: `{ meta, markdown, pages, overflow, overflowingPages, titleFitPt, palette, hasLogo }`. Reads the **unsaved** in-editor state — exactly what you see. |
 | `get_screenshot()` | Best-effort PNG of `.page` via html2canvas (after `document.fonts.ready`). Approximate — see *Vision caveat*. |
-| `propose_changes({ markdown?, title?, palette?, fontSize?, org?, year?, web? })` | Stages an **edit proposal**. Returns `"staged"` (or `"auto-accepted"` if trust mode is on — see below). |
-| `create_concept({ markdown?, title?, palette?, fontSize?, org?, year?, web? })` | Stages a **create proposal** for a brand-new flyer; on Accept it's created and opened. Returns `"staged"`. Never writes. |
+| `propose_changes({ markdown?, title?, palette?, fontSize? })` | Stages an **edit proposal**. Returns `"staged"` (or `"auto-accepted"` if trust mode is on — see below). org/web/year can't be proposed — they're auto-derived (identity in Nastavení + last-edit date). |
+| `create_concept({ markdown?, title?, palette?, fontSize? })` | Stages a **create proposal** for a brand-new flyer; on Accept it's created and opened. Returns `"staged"`. Never writes. |
 | `switch_concept(id)` | Stages a **switch proposal** ("Claude chce otevřít …"). Returns `"staged"`. |
 | `await_decision()` | **Blocks** until you Accept/Reject in the review pane, then returns `{ accepted, reason? }`. Caps at ~45 s → `{ status: "pending" }` (call again). The cap sits under the MCP client's ~60 s per-request timeout. This is how Claude is "notified" you finished reviewing. |
 | `list_concepts()` | `[{ id, title }]`. |

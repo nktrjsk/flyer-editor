@@ -29,12 +29,12 @@ export function useAutoSave(
     if (timerRef.current) clearTimeout(timerRef.current)
 
     timerRef.current = setTimeout(() => {
+      // org/year/web are auto-derived (identity setting + last-edit date) and
+      // deliberately NOT written back — the legacy columns keep their old
+      // values as a fallback for devices without the identity setting.
       update('concept', {
         id:       activeId,
         title:    meta.title,
-        org:      meta.org,
-        year:     meta.year,
-        web:      meta.web,
         fontSize: meta.fontSize,
         // Once a logoId is set, clear the legacy logo field to free storage.
         // If no logoId, preserve whatever is in the legacy field.
