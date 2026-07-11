@@ -11,6 +11,7 @@ import {
   importFromRepo,
   type PublishConfig,
 } from '../lib/githubPublish'
+import { releaseFingerprint } from '../lib/releaseFingerprint'
 import { useToast } from './ToastProvider'
 import { useConfirm } from './ConfirmProvider'
 import {
@@ -263,6 +264,16 @@ function PublishSettings() {
           palette: f.meta.palette,
           markdown: f.markdown,
           publishId: f.publishId,
+          // Repopulate the release baseline so an imported flyer reads as
+          // "published & in sync", not drifted, and future publishes locate its
+          // folder in one hop (the slug hint) instead of scanning.
+          lastPublishedHash: releaseFingerprint({
+            title: f.meta.title, fontSize: f.meta.fontSize, palette: f.meta.palette,
+            logoId, markdown: f.markdown,
+          }),
+          lastPublishedAt: f.publishedAt,
+          lastPublishedSlug: f.slug,
+          lastPublishedVersion: f.version,
         })
         if (res.ok) created++
       }

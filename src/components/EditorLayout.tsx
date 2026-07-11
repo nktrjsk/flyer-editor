@@ -10,6 +10,8 @@ import { useAiBridge } from '../hooks/useAiBridge'
 import { getAutoAcceptEdits } from '../lib/aiBridge'
 import { captureFlyerPng } from '../lib/flyerScreenshot'
 import { loadPublishConfig, isConfigured, newPublishId, publishConcept } from '../lib/githubPublish'
+import { slugify } from '../lib/slug'
+import { releaseFingerprint } from '../lib/releaseFingerprint'
 import { useEvolu } from '../db/schema'
 import { useToast } from './ToastProvider'
 import { useConfirm } from './ConfirmProvider'
@@ -54,6 +56,40 @@ function readPreviewFacts() {
     if (!Number.isNaN(pt)) titleFitPt.push(pt)
   })
   return { pages: pageEls.length, overflow: overflowingPages.length > 0, overflowingPages, titleFitPt }
+}
+
+type SidebarRelease = 'none' | 'clean' | 'drifted'
+
+/**
+ * Local, network-free release state for a sidebar row. Compares a fresh
+ * fingerprint of the row's editable content against the baseline stored at
+ * last publish. A published row with no baseline (older publish, or a wiped DB
+ * not yet reimported) reads as "drifted" — the safe default: it nudges a
+ * re-publish instead of hiding a possible change.
+ */
+function releaseFor(c: {
+  publishId: string | null
+  lastPublishedHash: string | null
+  lastPublishedAt: string | null
+  lastPublishedVersion: number | null
+  title: string | null
+  fontSize: number
+  palette: string | null
+  logoId: string | null
+  markdown: string
+}): { state: SidebarRelease; title?: string } {
+  if (c.publishId == null) return { state: 'none' }
+  const fp = releaseFingerprint({
+    title: c.title ?? '', fontSize: c.fontSize, palette: c.palette,
+    logoId: c.logoId, markdown: c.markdown,
+  })
+  const drifted = c.lastPublishedHash == null || fp !== c.lastPublishedHash
+  const v = c.lastPublishedVersion != null ? `v${c.lastPublishedVersion}` : 'publikováno'
+  const when = c.lastPublishedAt
+    ? new Date(String(c.lastPublishedAt)).toLocaleDateString('cs-CZ', { day: 'numeric', month: 'numeric' })
+    : ''
+  const title = `Publikováno ${v}${when ? ` · ${when}` : ''}${drifted ? ' · změněno od publikace' : ''}`
+  return { state: drifted ? 'drifted' : 'clean', title }
 }
 
 export default function EditorLayout({ onSnapshotReady, onPublishReady }: EditorLayoutProps) {
@@ -482,7 +518,22 @@ export default function EditorLayout({ onSnapshotReady, onPublishReady }: Editor
     }
 
     try {
-      const res = await publishConcept(cfg, { publishId, meta: effectiveMeta, markdown })
+      const slug = slugify(effectiveMeta.title, publishId)
+      const knownSlug = (activeRow?.lastPublishedSlug as string | null) ?? null
+      const res = await publishConcept(cfg, { publishId, slug, knownSlug, meta: effectiveMeta, markdown })
+      // Persist the release baseline for the sidebar drift badge. Fingerprint
+      // the editable content (not effectiveMeta) so it matches what the sidebar
+      // recomputes per row. lastPublishedSlug is the O(1) locate hint next time.
+      update('concept', {
+        id: activeId,
+        lastPublishedHash: releaseFingerprint({
+          title: meta.title, fontSize: meta.fontSize, palette: meta.palette,
+          logoId: meta.logoId, markdown,
+        }),
+        lastPublishedAt: new Date().toISOString(),
+        lastPublishedSlug: res.slug,
+        lastPublishedVersion: res.version,
+      })
       showToast({
         message: `Publikováno jako v${res.version}.`,
         action: { label: 'Otevřít', onClick: () => window.open(res.url, '_blank', 'noopener') },
@@ -498,9 +549,23 @@ export default function EditorLayout({ onSnapshotReady, onPublishReady }: Editor
   return (
     <div className="editor-layout">
       <Sidebar
-        concepts={concepts.map((c: { id: ConceptId; title: string | null; reviewStatus: string | null }) => ({
-          id: c.id, title: c.title ?? '', reviewStatus: c.reviewStatus,
-        }))}
+        concepts={concepts.map(c => {
+          const release = releaseFor({
+            publishId: c.publishId,
+            lastPublishedHash: c.lastPublishedHash,
+            lastPublishedAt: c.lastPublishedAt,
+            lastPublishedVersion: c.lastPublishedVersion,
+            title: c.title,
+            fontSize: c.fontSize ?? 9.5,
+            palette: c.palette,
+            logoId: c.logoId as string | null,
+            markdown: c.markdown ?? '',
+          })
+          return {
+            id: c.id, title: c.title ?? '', reviewStatus: c.reviewStatus,
+            releaseState: release.state, releaseTitle: release.title,
+          }
+        })}
         activeId={activeId}
         onSelect={id => handleSelect(id as ConceptId)}
         onNew={() => createConcept()}

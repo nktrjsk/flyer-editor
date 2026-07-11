@@ -133,14 +133,35 @@ async function putContent(
   path: string,
   contentB64: string,
   message: string,
+  sha?: string,
 ): Promise<GhFileContent> {
-  const res = await ghFetch(cfg, `/repos/${cfg.owner}/${cfg.repo}/contents/${encodePath(path)}`, {
-    method: 'PUT',
-    body: JSON.stringify({ message, content: contentB64, branch: cfg.branch }),
-  })
+  const put = (withSha?: string) =>
+    ghFetch(cfg, `/repos/${cfg.owner}/${cfg.repo}/contents/${encodePath(path)}`, {
+      method: 'PUT',
+      body: JSON.stringify({ message, content: contentB64, branch: cfg.branch, ...(withSha ? { sha: withSha } : {}) }),
+    })
+
+  let res = await put(sha)
+  // 422 = path already exists and we didn't pass its sha (can happen when a
+  // folder move overwrites a leftover from a prior partial move). Fetch the
+  // current sha and retry as an update rather than a create.
+  if (res.status === 422 && !sha) {
+    const existing = await getContent(cfg, path)
+    const esha = !Array.isArray(existing) ? existing?.sha : undefined
+    if (esha) res = await put(esha)
+  }
   if (!res.ok) throw new Error(await ghError(res))
   const json = await res.json()
   return json.content ?? json
+}
+
+async function deleteContent(cfg: PublishConfig, path: string, sha: string, message: string): Promise<void> {
+  const res = await ghFetch(cfg, `/repos/${cfg.owner}/${cfg.repo}/contents/${encodePath(path)}`, {
+    method: 'DELETE',
+    body: JSON.stringify({ message, sha, branch: cfg.branch }),
+  })
+  // Tolerate "already gone" — a move's delete pass is best-effort cleanup.
+  if (!res.ok && res.status !== 404 && res.status !== 422) throw new Error(await ghError(res))
 }
 
 /** Quick auth/repo check used by the "test connection" button. */
@@ -149,22 +170,108 @@ export async function checkAccess(cfg: PublishConfig): Promise<void> {
   if (!res.ok) throw new Error(await ghError(res))
 }
 
-// ── Publish ──────────────────────────────────────────────────────────────────
+// ── Locating a flyer in the repo ─────────────────────────────────────────────
+// Identity is the frontmatter `publishId`, NOT the folder name (folders are now
+// readable slugs). To publish the next version we must find where the flyer
+// currently lives: try the caller's slug hint, then the legacy hex folder, then
+// scan. Cheap for a small archive; fully repo-derived so a DB wipe can't lie.
 const RE_VERSION = /^v(\d+)\.md$/
 
-async function nextVersion(cfg: PublishConfig, publishId: string): Promise<number> {
-  const list = await getContent(cfg, `flyers/${publishId}`)
-  if (!Array.isArray(list)) return 1
-  let max = 0
-  for (const item of list) {
-    const m = RE_VERSION.exec(item.name)
-    if (m) max = Math.max(max, parseInt(m[1], 10))
+/** Read a folder's identity: its highest version and the publishId in that
+ *  version's frontmatter. Returns null if the folder isn't a flyer folder. */
+async function folderIdentity(
+  cfg: PublishConfig,
+  path: string,
+): Promise<{ publishId: string | null; version: number } | null> {
+  const files = await getContent(cfg, path)
+  if (!Array.isArray(files)) return null
+  let version = 0
+  let latest: GhContentItem | null = null
+  for (const f of files) {
+    const m = RE_VERSION.exec(f.name)
+    if (m) {
+      const n = parseInt(m[1], 10)
+      if (n > version) { version = n; latest = f }
+    }
   }
-  return max + 1
+  if (!latest) return null
+  const data = await getContent(cfg, latest.path)
+  if (Array.isArray(data) || !data?.content) return { publishId: null, version }
+  const parsed = parseFlyer(base64ToUtf8(data.content))
+  return { publishId: parsed?.fm.publishId ?? null, version }
 }
 
+interface FlyerLocation { path: string; slug: string; version: number }
+
+/** Find the folder currently holding this publishId. Prefers the hint slug and
+ *  the legacy hex folder (name === publishId) before a full scan. If a partial
+ *  move left the flyer in two folders, the highest version wins. */
+async function locateFlyer(
+  cfg: PublishConfig,
+  publishId: string,
+  hint?: string | null,
+): Promise<FlyerLocation | null> {
+  const tryFolder = async (slug: string): Promise<FlyerLocation | null> => {
+    const id = await folderIdentity(cfg, `flyers/${slug}`)
+    // A legacy hex folder (name === publishId) may predate publishId frontmatter.
+    if (id && (id.publishId === publishId || slug === publishId)) {
+      return { path: `flyers/${slug}`, slug, version: id.version }
+    }
+    return null
+  }
+
+  const tried = new Set<string>()
+  if (hint) { tried.add(hint); const r = await tryFolder(hint); if (r) return r }
+  if (!tried.has(publishId)) { tried.add(publishId); const r = await tryFolder(publishId); if (r) return r }
+
+  const dirs = await getContent(cfg, 'flyers')
+  if (!Array.isArray(dirs)) return null
+  let found: FlyerLocation | null = null
+  for (const d of dirs) {
+    if (d.type !== 'dir' || tried.has(d.name)) continue
+    const id = await folderIdentity(cfg, d.path)
+    if (id?.publishId === publishId && (!found || id.version > found.version)) {
+      found = { path: d.path, slug: d.name, version: id.version }
+    }
+  }
+  return found
+}
+
+/** Resolve the folder slug to publish into, avoiding collisions with a
+ *  DIFFERENT flyer. If `desiredSlug` is free or already ours, use it; if a
+ *  different flyer owns it, append a short id suffix. */
+async function resolveTargetSlug(cfg: PublishConfig, desiredSlug: string, publishId: string): Promise<string> {
+  const id = await folderIdentity(cfg, `flyers/${desiredSlug}`)
+  if (!id || id.publishId === publishId) return desiredSlug
+  return `${desiredSlug}-${publishId.slice(0, 4)}`
+}
+
+/** Copy every file from one folder to another, then delete the originals.
+ *  Copy-all-first / delete-last: a mid-failure leaves harmless duplicates, and
+ *  `locateFlyer` prefers the highest version, so the next publish self-heals. */
+async function moveFolder(cfg: PublishConfig, fromPath: string, toPath: string): Promise<void> {
+  const files = await getContent(cfg, fromPath)
+  if (!Array.isArray(files)) return
+  const moved: GhContentItem[] = []
+  for (const f of files) {
+    if (f.type !== 'file') continue
+    const data = await getContent(cfg, f.path)
+    if (Array.isArray(data) || !data?.content) continue
+    await putContent(cfg, `${toPath}/${f.name}`, data.content.replace(/\s/g, ''), `Move ${f.name} → ${toPath}`)
+    moved.push(f)
+  }
+  for (const f of moved) {
+    await deleteContent(cfg, f.path, f.sha, `Remove ${f.path} after folder rename`)
+  }
+}
+
+// ── Publish ──────────────────────────────────────────────────────────────────
 export interface PublishInput {
   publishId: string
+  /** desired readable slug for the folder, derived from the current title */
+  slug: string
+  /** last-published folder name (Evolu hint); speeds up locate, may be stale */
+  knownSlug?: string | null
   meta: ConceptMeta
   markdown: string
 }
@@ -172,12 +279,26 @@ export interface PublishInput {
 export interface PublishResult {
   version: number
   url: string
+  /** the folder slug actually used (may differ from input on collision) */
+  slug: string
 }
 
 export async function publishConcept(cfg: PublishConfig, input: PublishInput): Promise<PublishResult> {
   const { publishId, meta, markdown } = input
-  const version = await nextVersion(cfg, publishId)
-  const dir = `flyers/${publishId}`
+
+  // Where does this flyer currently live, and what's the next version?
+  const current = await locateFlyer(cfg, publishId, input.knownSlug)
+  const version = (current?.version ?? 0) + 1
+
+  // Collision-aware target folder for the (possibly retitled) slug.
+  const targetSlug = await resolveTargetSlug(cfg, input.slug, publishId)
+  const dir = `flyers/${targetSlug}`
+
+  // Retitle or legacy-hex migration: fold the whole history into the new folder
+  // before writing the new version, so all versions stay together.
+  if (current && current.path !== dir) {
+    await moveFolder(cfg, current.path, dir)
+  }
 
   // Logo first (so the .md can reference a file that already exists).
   let logoFile: string | null = null
@@ -186,7 +307,7 @@ export async function publishConcept(cfg: PublishConfig, input: PublishInput): P
     if (parsed) {
       const ext = MIME_EXT[parsed.mime] ?? 'png'
       logoFile = `v${version}-logo.${ext}`
-      await putContent(cfg, `${dir}/${logoFile}`, parsed.b64.replace(/\s/g, ''), `Flyer ${publishId} v${version} (logo)`)
+      await putContent(cfg, `${dir}/${logoFile}`, parsed.b64.replace(/\s/g, ''), `Flyer ${targetSlug} v${version} (logo)`)
     }
   }
 
@@ -206,14 +327,16 @@ export async function publishConcept(cfg: PublishConfig, input: PublishInput): P
     markdown,
   )
 
-  const res = await putContent(cfg, `${dir}/v${version}.md`, utf8ToBase64(fileText), `Publish flyer ${publishId} v${version}`)
+  const res = await putContent(cfg, `${dir}/v${version}.md`, utf8ToBase64(fileText), `Publish ${targetSlug} v${version}`)
   const url = res.html_url ?? `https://github.com/${cfg.owner}/${cfg.repo}/blob/${cfg.branch}/${dir}/v${version}.md`
-  return { version, url }
+  return { version, url, slug: targetSlug }
 }
 
 // ── Import (recovery) ──────────────────────────────────────────────────────────
 export interface ImportedFlyer {
   publishId: string
+  /** the folder slug it was read from → repopulates lastPublishedSlug on import */
+  slug: string
   version: number
   meta: {
     title: string
@@ -226,6 +349,8 @@ export interface ImportedFlyer {
   markdown: string
   /** reconstructed data: URL for the logo, or null */
   logoDataUrl: string | null
+  /** ISO timestamp from frontmatter, or null → repopulates lastPublishedAt */
+  publishedAt: string | null
 }
 
 /** Read the latest version of every published flyer. Does NOT touch Evolu —
@@ -271,9 +396,11 @@ export async function importFromRepo(cfg: PublishConfig): Promise<ImportedFlyer[
 
     out.push({
       publishId: fm.publishId ?? d.name,
+      slug: d.name,
       version: best,
       markdown,
       logoDataUrl,
+      publishedAt: fm.publishedAt ?? null,
       meta: {
         title: fm.title ?? '',
         org: fm.org ?? '',

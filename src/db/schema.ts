@@ -47,10 +47,18 @@ const Schema = {
     reviewStatus: nullOr(EvoluString), // 'review' = flagged for review; null = none
     markdown: EvoluString,
     // Stable publish identity, generated on first publish, decoupled from the
-    // Evolu row id (which is regenerated on a fresh DB). It keys the repo folder
-    // (`flyers/<publishId>/`) and the version lineage in frontmatter, so a
-    // wipe-and-reimport re-attaches to the same lineage instead of forking it.
+    // Evolu row id (which is regenerated on a fresh DB). It stays in the flyer
+    // frontmatter as the true matching key for import, so a wipe-and-reimport
+    // re-attaches to the same version lineage instead of forking it. The repo
+    // FOLDER is now a readable slug (see lastPublishedSlug); publishId is no
+    // longer the folder name.
     publishId: nullOr(EvoluString),
+    // Release state, written after a successful publish (never by useAutoSave).
+    // All are "display / hint" — the repo stays authoritative for versioning.
+    lastPublishedHash: nullOr(EvoluString),    // fingerprint of published content → sidebar drift
+    lastPublishedAt: nullOr(EvoluString),      // ISO timestamp of last publish
+    lastPublishedSlug: nullOr(EvoluString),    // last folder name → O(1) locate hint (scan fallback)
+    lastPublishedVersion: nullOr(FiniteNumber),// last version number, for the sidebar tooltip
   },
   conceptSnapshot: {
     id: ConceptSnapshotId,
@@ -98,11 +106,19 @@ export const evolu = createEvolu(evoluReactWebDeps)(Schema, {
 export const useEvolu = createUseEvolu(evolu)
 
 // ── Queries ───────────────────────────────────────────────
-/** Concept list for the sidebar — id + title only, ordered newest first */
+/** Concept list for the sidebar. Beyond id/title/reviewStatus it carries the
+ *  fields needed to compute the release/drift badge locally (no network):
+ *  publishId + lastPublished* baseline, and the editable content the
+ *  fingerprint is derived from (fontSize/palette/logoId/markdown). Ordered
+ *  newest first. */
 export const allConceptsQuery = evolu.createQuery(db =>
   db
     .selectFrom('concept')
-    .select(['id', 'title', 'reviewStatus', 'createdAt'])
+    .select([
+      'id', 'title', 'reviewStatus', 'createdAt',
+      'publishId', 'lastPublishedHash', 'lastPublishedAt', 'lastPublishedVersion',
+      'fontSize', 'palette', 'logoId', 'markdown',
+    ])
     .where('isDeleted', 'is not', sqliteTrue)
     .orderBy('createdAt', 'desc'),
 )
