@@ -69,8 +69,17 @@ publishes `dist/`. Push to `main` → auto-deploys.
 ## Design Context
 
 Strategic design context lives in `PRODUCT.md` (register: product; users, personality,
-anti-references, design principles). Read it before any UI/design work. Personality is
-"quiet workshop" — chrome recedes, the A5 page is the star — but the **current CSS
-execution is slated for redesign**; treat `src/style.css` as legacy to improve, not a
-system to preserve. No DESIGN.md yet — generate one (`/impeccable document`) only after
-the redesign lands.
+anti-references, design principles); the visual system is documented in `DESIGN.md`
+("The Dim Print Shop": dark warm-gray `--ui-*` chrome + one brass accent around the lit
+A5 page). Read both before any UI/design work. The two token worlds never mix — flyer
+tokens style only `.page` and print output, `--ui-*` styles everything else.
+
+## Working style
+
+Hand off coding tasks to Sonnet. Once a task is scoped — plan agreed, design decisions
+resolved, files identified — delegate the actual implementation to a Claude Sonnet
+subagent (via the Agent tool with `model: "sonnet"`) rather than writing the code
+directly. Opus stays on the scoping, design, review, and verification; Sonnet does the
+edits. Give the subagent the full context it needs (target files, the agreed design,
+constraints like the `--ui-*`/flyer token split), have it build and typecheck, then
+review its output before reporting back.

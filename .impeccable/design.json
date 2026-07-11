@@ -1,0 +1,175 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-07-05T12:00:00Z",
+  "title": "Design System: Editor letáku",
+  "extensions": {
+    "colorMeta": {
+      "brass": {
+        "role": "primary",
+        "displayName": "Brass",
+        "canonical": "oklch(0.78 0.125 78)",
+        "tonalRamp": ["oklch(0.15 0.125 78)", "oklch(0.26 0.125 78)", "oklch(0.38 0.125 78)", "oklch(0.49 0.125 78)", "oklch(0.60 0.125 78)", "oklch(0.72 0.125 78)", "oklch(0.83 0.125 78)", "oklch(0.95 0.06 78)"]
+      },
+      "panel": {
+        "role": "neutral",
+        "displayName": "The Room Ramp (panel step)",
+        "canonical": "oklch(0.255 0.008 80)",
+        "tonalRamp": ["oklch(0.15 0.010 80)", "oklch(0.22 0.010 80)", "oklch(0.255 0.008 80)", "oklch(0.28 0.008 80)", "oklch(0.33 0.009 80)", "oklch(0.50 0.014 80)", "oklch(0.80 0.015 82)", "oklch(0.93 0.012 85)"]
+      },
+      "text-bright": {
+        "role": "neutral",
+        "displayName": "Bright",
+        "canonical": "oklch(0.93 0.012 85)",
+        "tonalRamp": ["oklch(0.15 0.012 85)", "oklch(0.26 0.012 85)", "oklch(0.38 0.012 85)", "oklch(0.49 0.012 85)", "oklch(0.60 0.013 85)", "oklch(0.70 0.014 80)", "oklch(0.80 0.015 82)", "oklch(0.93 0.012 85)"]
+      },
+      "danger": {
+        "role": "tertiary",
+        "displayName": "Danger",
+        "canonical": "oklch(0.70 0.160 28)",
+        "tonalRamp": ["oklch(0.15 0.16 28)", "oklch(0.26 0.17 28)", "oklch(0.38 0.18 28)", "oklch(0.52 0.185 28)", "oklch(0.60 0.17 28)", "oklch(0.70 0.16 28)", "oklch(0.83 0.10 28)", "oklch(0.95 0.04 28)"]
+      },
+      "success": {
+        "role": "tertiary",
+        "displayName": "Success",
+        "canonical": "oklch(0.76 0.140 150)",
+        "tonalRamp": ["oklch(0.15 0.14 150)", "oklch(0.26 0.14 150)", "oklch(0.38 0.14 150)", "oklch(0.49 0.14 150)", "oklch(0.60 0.14 150)", "oklch(0.76 0.14 150)", "oklch(0.85 0.10 150)", "oklch(0.95 0.05 150)"]
+      },
+      "flyer-teal": {
+        "role": "secondary",
+        "displayName": "Flyer Teal (paper world only)",
+        "canonical": "oklch(0.47 0.08 175)",
+        "tonalRamp": ["oklch(0.15 0.06 175)", "oklch(0.26 0.07 175)", "oklch(0.38 0.08 175)", "oklch(0.47 0.08 175)", "oklch(0.60 0.08 175)", "oklch(0.72 0.07 175)", "oklch(0.84 0.05 175)", "oklch(0.95 0.02 175)"]
+      },
+      "flyer-paper": {
+        "role": "neutral",
+        "displayName": "Paper",
+        "canonical": "#faf9f6",
+        "tonalRamp": ["#1c1c1e", "#3a3a38", "#5c5c5c", "#8a8880", "#aaa79e", "#d4d0c8", "#eceae4", "#faf9f6"]
+      }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display (Fraunces)", "purpose": "Flyer titles and h2/h3 on the A5 page only. Never in the chrome." },
+      "prose": { "displayName": "Prose (Crimson Pro)", "purpose": "Flyer body text; sized in pt because it is a print measurement (--base, default 9.5pt)." },
+      "title": { "displayName": "Chrome Title", "purpose": "Modal and panel titles — the chrome's largest type, capped at 1rem." },
+      "body": { "displayName": "Chrome Body", "purpose": "Buttons, list rows, form text — the workhorse 0.8125rem." },
+      "label": { "displayName": "Label", "purpose": "Pane/field labels, sentence case; never uppercase-tracked eyebrows." },
+      "mono": { "displayName": "Mono", "purpose": "Markdown source textarea, mnemonic grid, diff view, code chips." }
+    },
+    "shadows": [
+      { "name": "page-glow", "value": "0 0 0 1px rgba(255,255,255,0.04), 0 2px 6px rgba(0,0,0,0.45), 0 24px 64px rgba(0,0,0,0.5)", "purpose": "The A5 page only — the lit object in the dim room. Removed in print." },
+      { "name": "modal-lift", "value": "0 16px 48px rgba(0,0,0,0.5)", "purpose": "Modals, History Explorer, confirm dialogs." },
+      { "name": "popover-lift", "value": "0 12px 32px rgba(0,0,0,0.45)", "purpose": "Toolbar popovers; proposal pane uses 0 12px 40px rgba(0,0,0,0.5)." },
+      { "name": "toast-lift", "value": "0 8px 24px rgba(0,0,0,0.5)", "purpose": "Toast notifications." },
+      { "name": "warning-glow", "value": "0 -2px 12px oklch(0.52 0.185 28 / 0.5)", "purpose": "Overflow danger bars only — loudness rendered as light." }
+    ],
+    "motion": [
+      { "name": "control-transition", "value": "0.15s (background, color, border-color)", "purpose": "Default hover/focus state change on every control." },
+      { "name": "toast-enter", "value": "opacity 0.2s ease-out, transform 0.2s ease-out (8px rise)", "purpose": "Toast entrance; fade-only under prefers-reduced-motion." },
+      { "name": "status-pulse", "value": "sync-pulse 1.2s ease-in-out infinite (opacity to 0.3 at 50%)", "purpose": "Checking/connecting dots; disabled under reduced motion — the dot color still carries the state." }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button (brass)",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The one filled control per view — the final act of a workflow (Tisknout / PDF, Přijmout).",
+      "html": "<button class=\"ds-btn-primary\">Tisknout / PDF</button>",
+      "css": ".ds-btn-primary { background: oklch(0.78 0.125 78); color: oklch(0.23 0.030 80); font-family: 'Source Sans 3', system-ui, sans-serif; font-size: 0.8125rem; font-weight: 600; padding: 7px 14px; border: 1px solid transparent; border-radius: 6px; cursor: pointer; transition: background 0.15s; } .ds-btn-primary:hover { background: oklch(0.83 0.125 80); } .ds-btn-primary:focus-visible { outline: 2px solid oklch(0.78 0.125 78); outline-offset: 2px; }"
+    },
+    {
+      "name": "Ghost Button (toolbar)",
+      "kind": "button",
+      "refersTo": "button-ghost",
+      "description": "The toolbar default: quiet until touched — transparent at rest, surface fill on hover.",
+      "html": "<div class=\"ds-ghost-wrap\"><button class=\"ds-btn-ghost\">Uložit zálohu</button></div>",
+      "css": ".ds-ghost-wrap { background: oklch(0.255 0.008 80); padding: 10px; border-radius: 8px; display: inline-block; } .ds-btn-ghost { background: transparent; color: oklch(0.80 0.015 82); font-family: 'Source Sans 3', system-ui, sans-serif; font-size: 0.8125rem; font-weight: 500; padding: 7px 14px; border: 1px solid transparent; border-radius: 6px; cursor: pointer; transition: background 0.15s, color 0.15s; } .ds-btn-ghost:hover { background: oklch(0.33 0.009 80); color: oklch(0.93 0.012 85); } .ds-btn-ghost:focus-visible { outline: 2px solid oklch(0.78 0.125 78); outline-offset: 2px; }"
+    },
+    {
+      "name": "Secondary Button (surface)",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Modal/panel actions: flat surface fill with a hairline border.",
+      "html": "<div class=\"ds-sec-wrap\"><button class=\"ds-btn-secondary\">Zkopírovat</button></div>",
+      "css": ".ds-sec-wrap { background: oklch(0.28 0.008 80); padding: 10px; border-radius: 8px; display: inline-block; } .ds-btn-secondary { background: oklch(0.33 0.009 80); color: oklch(0.80 0.015 82); font-family: 'Source Sans 3', system-ui, sans-serif; font-size: 0.8125rem; font-weight: 500; padding: 7px 14px; border: 1px solid oklch(0.40 0.012 80); border-radius: 6px; cursor: pointer; transition: background 0.15s, color 0.15s; } .ds-btn-secondary:hover { background: oklch(0.37 0.010 80); color: oklch(0.93 0.012 85); } .ds-btn-secondary:focus-visible { outline: 2px solid oklch(0.78 0.125 78); outline-offset: 2px; }"
+    },
+    {
+      "name": "Text Field",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Surface-filled input; focus swaps the border to brass — no glow, no inner ring.",
+      "html": "<div class=\"ds-field\"><label class=\"ds-field-label\" for=\"ds-org\">Organizace</label><input class=\"ds-input\" id=\"ds-org\" placeholder=\"Název spolku\" /></div>",
+      "css": ".ds-field { background: oklch(0.28 0.008 80); padding: 14px; border-radius: 8px; display: flex; flex-direction: column; gap: 6px; width: 240px; } .ds-field-label { font-family: 'Source Sans 3', system-ui, sans-serif; font-size: 0.75rem; font-weight: 600; letter-spacing: 0.01em; color: oklch(0.80 0.015 82); } .ds-input { background: oklch(0.33 0.009 80); border: 1px solid oklch(0.40 0.012 80); border-radius: 6px; color: oklch(0.93 0.012 85); font-family: 'Source Sans 3', system-ui, sans-serif; font-size: 0.875rem; padding: 8px 10px; outline: none; transition: border-color 0.15s; } .ds-input:focus { border-color: oklch(0.78 0.125 78); } .ds-input::placeholder { color: oklch(0.70 0.014 80); }"
+    },
+    {
+      "name": "Sidebar Item (active)",
+      "kind": "nav",
+      "refersTo": "list-item-active",
+      "description": "Concept list rows: quiet Mid text at rest, brass-tint + bright 600 when active.",
+      "html": "<div class=\"ds-sidebar\"><div class=\"ds-side-item\">Otevřené hranice — mýty</div><div class=\"ds-side-item ds-side-item--active\">Leták o migraci</div><div class=\"ds-side-item\">Ekonomika bez hranic</div></div>",
+      "css": ".ds-sidebar { background: oklch(0.255 0.008 80); padding: 8px; border-radius: 8px; width: 240px; font-family: 'Source Sans 3', system-ui, sans-serif; } .ds-side-item { padding: 9px 10px; margin-bottom: 2px; border-radius: 6px; font-size: 0.875rem; color: oklch(0.80 0.015 82); cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; transition: background 0.15s; } .ds-side-item:hover { background: oklch(0.30 0.008 80); } .ds-side-item--active { background: oklch(0.78 0.125 78 / 0.13); color: oklch(0.93 0.012 85); font-weight: 600; }"
+    },
+    {
+      "name": "Segmented Toggle (palette)",
+      "kind": "chip",
+      "refersTo": "button-secondary",
+      "description": "Barevný / Černobílý: one hairline pill, active segment fills Surface. Icon + word, never icon-only.",
+      "html": "<div class=\"ds-seg-wrap\"><div class=\"ds-seg\"><button class=\"ds-seg-btn ds-seg-btn--active\"><svg width=\"15\" height=\"15\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><circle cx=\"13.5\" cy=\"6.5\" r=\".5\"/><circle cx=\"17.5\" cy=\"10.5\" r=\".5\"/><circle cx=\"8.5\" cy=\"7.5\" r=\".5\"/><circle cx=\"6.5\" cy=\"12.5\" r=\".5\"/><path d=\"M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z\"/></svg>Barevný</button><button class=\"ds-seg-btn\"><svg width=\"15\" height=\"15\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><circle cx=\"12\" cy=\"12\" r=\"10\"/><path d=\"M12 18a6 6 0 0 0 0-12v12z\"/></svg>Černobílý</button></div></div>",
+      "css": ".ds-seg-wrap { background: oklch(0.28 0.008 80); padding: 12px; border-radius: 8px; display: inline-block; } .ds-seg { display: flex; border: 1px solid oklch(0.40 0.012 80); border-radius: 6px; overflow: hidden; } .ds-seg-btn { flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 6px; background: none; border: none; border-right: 1px solid oklch(0.40 0.012 80); color: oklch(0.70 0.014 80); font-family: 'Source Sans 3', system-ui, sans-serif; font-size: 0.8125rem; font-weight: 500; padding: 7px 12px; cursor: pointer; transition: background 0.15s, color 0.15s; } .ds-seg-btn svg { opacity: 0.85; } .ds-seg-btn:last-child { border-right: none; } .ds-seg-btn:hover:not(.ds-seg-btn--active) { background: oklch(0.30 0.008 80); color: oklch(0.80 0.015 82); } .ds-seg-btn--active { background: oklch(0.33 0.009 80); color: oklch(0.93 0.012 85); }"
+    },
+    {
+      "name": "Toast (with undo)",
+      "kind": "custom",
+      "refersTo": "badge-accent",
+      "description": "Bottom-center notification: surface fill, strong hairline, brass action link.",
+      "html": "<div class=\"ds-toast\"><span class=\"ds-toast-msg\">Záloha obnovena.</span><button class=\"ds-toast-action\">Zpět</button></div>",
+      "css": ".ds-toast { display: flex; align-items: center; gap: 12px; background: oklch(0.33 0.009 80); border: 1px solid oklch(0.50 0.014 80); border-radius: 8px; padding: 10px 16px; color: oklch(0.93 0.012 85); font-family: 'Source Sans 3', system-ui, sans-serif; font-size: 0.8125rem; min-width: 240px; max-width: 440px; box-shadow: 0 8px 24px rgba(0,0,0,0.5); } .ds-toast-msg { flex: 1; line-height: 1.45; } .ds-toast-action { background: none; border: 1px solid oklch(0.50 0.014 80); border-radius: 6px; color: oklch(0.78 0.125 78); font-family: 'Source Sans 3', system-ui, sans-serif; font-size: 0.75rem; font-weight: 600; padding: 4px 10px; cursor: pointer; white-space: nowrap; transition: border-color 0.15s, color 0.15s; } .ds-toast-action:hover { border-color: oklch(0.78 0.125 78); color: oklch(0.83 0.125 80); }"
+    },
+    {
+      "name": "Status Chip (sync)",
+      "kind": "custom",
+      "refersTo": "badge-accent",
+      "description": "Dot + word status: green online, red offline, pulsing while checking (color-only under reduced motion).",
+      "html": "<div class=\"ds-chip-wrap\"><span class=\"ds-sync\"><span class=\"ds-sync-dot ds-sync-dot--online\"></span>Synchronizováno</span></div>",
+      "css": ".ds-chip-wrap { background: oklch(0.255 0.008 80); padding: 10px 14px; border-radius: 8px; display: inline-block; } .ds-sync { display: inline-flex; align-items: center; gap: 7px; font-family: 'Source Sans 3', system-ui, sans-serif; font-size: 0.75rem; letter-spacing: 0.01em; color: oklch(0.80 0.015 82); } .ds-sync-dot { width: 8px; height: 8px; border-radius: 50%; background: oklch(0.70 0.014 80); } .ds-sync-dot--online { background: oklch(0.76 0.140 150); }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Dim Print Shop",
+    "overview": "The editor is a dim workshop in warm deep grays, and the A5 preview is the one lit object in the room. Panels sit in a narrow band of dark warm-gray lightness steps, text is quiet but AA-legible, and a single brass accent marks actions, selection, and focus — nothing else. The system is split into two worlds that never mix: flyer tokens style only the page and print output; --ui-* tokens style everything around it, so the tool can be redesigned without ever reflowing the paper. The chrome explicitly rejects generic SaaS dashboard chrome, Canva/Figma design-tool maximalism, and the dark-hacker/terminal aesthetic — the mood is print shop, not code editor.",
+    "keyCharacteristics": [
+      "Dark warm-gray chrome (hue ~80) receding around one bright A5 page",
+      "One brass accent, used for action/selection/focus only — never decoration",
+      "Two token worlds: --ui-* for the tool, flyer tokens for the paper; never crossed",
+      "Sans chrome (Source Sans 3), serif paper (Fraunces + Crimson Pro), mono only for Markdown source and secrets",
+      "Calm, state-only motion; AA contrast throughout; Czech-first UI copy"
+    ],
+    "rules": [
+      { "name": "The Two Worlds Rule", "body": "Flyer tokens style .page and print output; --ui-* tokens style everything else. A chrome change must never alter the paper; a flyer-design change must never touch the chrome. Crossing the namespaces is forbidden.", "section": "colors" },
+      { "name": "The One Brass Rule", "body": "Brass appears only on actions, selection, and focus — and at most one filled brass control per view. If brass is decorating rather than pointing, remove it.", "section": "colors" },
+      { "name": "The Serif Stays on the Paper Rule", "body": "Fraunces and Crimson Pro may only appear inside .page. Chrome labels, buttons, and headings are always Source Sans 3 — a serif in the chrome is a regression to the rejected pre-redesign look.", "section": "typography" },
+      { "name": "The Fixed Scale Rule", "body": "Chrome type uses a fixed rem scale (0.6875 / 0.75 / 0.8125 / 0.875 / 1rem). No fluid clamp() sizes in the tool; fluid type belongs nowhere near a print-truth preview.", "section": "typography" },
+      { "name": "The Lit Object Rule", "body": "Only the page and true floating layers cast shadows. If a resting panel, card, button, or input has a box-shadow, it's wrong — depth at rest is a tonal step, never a shadow.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do keep the two worlds separate: --ui-* for chrome, flyer tokens for .page. Restyling the tool must never reflow the paper (The Two Worlds Rule).",
+      "Do reserve brass for actions, selection, and focus — one filled brass control per view, everything else ghost or surface (The One Brass Rule).",
+      "Do express chrome depth as tonal steps on the hue-80 ramp with 1px hairlines; shadows belong only to the page and floating layers (The Lit Object Rule).",
+      "Do hold AA contrast: ≥4.5:1 body text, ≥3:1 large text, placeholders included — verified pairs are Bright/Mid/Dim on their designated surfaces.",
+      "Do keep motion at 150–250 ms ease-out, state-driven only, with a prefers-reduced-motion alternative for every animation.",
+      "Do surface print problems loudly (danger bars, outlines, faded clip masks) — overflow and fit problems are surfaced, never hidden.",
+      "Do write UI copy Czech-first, sentence case, in the quiet-workshop voice.",
+      "Do use the semantic z-scale tokens (popover 100 → toast 500); use lucide icons at 15px / stroke 1.8 / 0.85 opacity, always paired with a word in buttons."
+    ],
+    "donts": [
+      "Don't build \"generic SaaS dashboard chrome\" — no card grids, gradients, icon tiles, or hero metrics.",
+      "Don't drift into \"design-tool maximalism (Canva/Figma-style)\" — no floating toolbars, panel forests, or property inspectors everywhere.",
+      "Don't slide into the \"dark-hacker / terminal aesthetic\" — dark chrome, yes; mono everywhere, scanlines, or neon, never. The mood is print shop, not terminal.",
+      "Don't put Fraunces or Crimson Pro in the chrome — serif UI labels are the rejected pre-redesign look (The Serif Stays on the Paper Rule).",
+      "Don't shadow resting chrome, use borders >1px, or reach for side-stripe accents, gradient text, or glassmorphism. Ever.",
+      "Don't let anything in the room outshine the page: no bright panels, no saturated fills on inactive states, no chrome type larger than 1rem.",
+      "Don't animate for decoration, choreograph page loads, or use arbitrary z-index values like 999.",
+      "Don't print screen-only aids: overflow bars, placeholders, hover washes, and editing affordances must all be suppressed in @media print."
+    ]
+  }
+}
