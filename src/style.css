@@ -198,6 +198,8 @@ body {
   background: var(--ui-surface);
   color: var(--ui-text);
 }
+.toolbar button:disabled { opacity: 0.6; cursor: default; }
+.toolbar button:disabled:hover { background: transparent; }
 /* The one filled control in the toolbar: the final act of the workflow. */
 .toolbar button.toolbar-primary {
   background: var(--ui-accent);
@@ -205,6 +207,12 @@ body {
   font-weight: 600;
 }
 .toolbar button.toolbar-primary:hover { background: var(--ui-accent-hover); }
+
+/* Spinning loader icon (e.g. Publikovat while the upload is in flight). */
+.spin { animation: toolbar-spin 0.8s linear infinite; }
+@keyframes toolbar-spin {
+  to { transform: rotate(360deg); }
+}
 
 /* ── Sync status chip ─────────────────────────────────────── */
 .sync-status {

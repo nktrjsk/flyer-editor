@@ -13,6 +13,7 @@ import LabelModal from './LabelModal'
 export default function App() {
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [labelModalOpen, setLabelModalOpen] = useState(false)
+  const [publishing, setPublishing] = useState(false)
 
   // Ref populated by EditorLayout via onSnapshotReady — avoids prop-drilling
   // the snapshot function through the component tree.
@@ -40,6 +41,7 @@ export default function App() {
             onOpenSettings={() => setSettingsOpen(true)}
             onSaveSnapshot={handleSaveSnapshot}
             onPublish={() => publishRef.current?.()}
+            isPublishing={publishing}
           />
           {/* EditorLayout suspends while Evolu/OPFS initialises. Show a populated
               (cached) or skeleton placeholder instead of an empty editor. The
@@ -50,6 +52,7 @@ export default function App() {
               <EditorLayout
                 onSnapshotReady={fn => { saveManualSnapshotRef.current = fn }}
                 onPublishReady={fn => { publishRef.current = fn }}
+                onPublishingChange={setPublishing}
               />
             </Suspense>
           </BootErrorBoundary>

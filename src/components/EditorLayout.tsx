@@ -25,6 +25,7 @@ import type { ConceptId } from '../db/schema'
 interface EditorLayoutProps {
   onSnapshotReady?: (saveFn: (label: string | null) => void) => void
   onPublishReady?: (publishFn: () => void) => void
+  onPublishingChange?: (v: boolean) => void
 }
 
 /**
@@ -92,7 +93,7 @@ function releaseFor(c: {
   return { state: drifted ? 'drifted' : 'clean', title }
 }
 
-export default function EditorLayout({ onSnapshotReady, onPublishReady }: EditorLayoutProps) {
+export default function EditorLayout({ onSnapshotReady, onPublishReady, onPublishingChange }: EditorLayoutProps) {
   const concepts = useConcepts()
   const { update } = useEvolu()
   const {
@@ -517,6 +518,7 @@ export default function EditorLayout({ onSnapshotReady, onPublishReady }: Editor
       update('concept', { id: activeId, publishId })
     }
 
+    onPublishingChange?.(true)
     try {
       const slug = slugify(effectiveMeta.title, publishId)
       const knownSlug = (activeRow?.lastPublishedSlug as string | null) ?? null
@@ -543,6 +545,8 @@ export default function EditorLayout({ onSnapshotReady, onPublishReady }: Editor
         message: `Publikování selhalo: ${e instanceof Error ? e.message : String(e)}`,
         durationMs: 8000,
       })
+    } finally {
+      onPublishingChange?.(false)
     }
   }
 

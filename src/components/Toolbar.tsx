@@ -1,4 +1,4 @@
-import { Archive, Printer, Settings, Upload } from 'lucide-react'
+import { Archive, LoaderCircle, Printer, Settings, Upload } from 'lucide-react'
 import AiConnect from './AiConnect'
 import SyncStatus from './SyncStatus'
 
@@ -6,9 +6,10 @@ interface ToolbarProps {
   onOpenSettings: () => void
   onSaveSnapshot: () => void
   onPublish: () => void
+  isPublishing: boolean
 }
 
-export default function Toolbar({ onOpenSettings, onSaveSnapshot, onPublish }: ToolbarProps) {
+export default function Toolbar({ onOpenSettings, onSaveSnapshot, onPublish, isPublishing }: ToolbarProps) {
   return (
     <header className="toolbar">
       <span className="toolbar-title">Editor letáku</span>
@@ -19,9 +20,11 @@ export default function Toolbar({ onOpenSettings, onSaveSnapshot, onPublish }: T
           <Archive size={15} strokeWidth={1.8} aria-hidden="true" />
           Uložit zálohu
         </button>
-        <button onClick={onPublish}>
-          <Upload size={15} strokeWidth={1.8} aria-hidden="true" />
-          Publikovat
+        <button onClick={onPublish} disabled={isPublishing}>
+          {isPublishing
+            ? <LoaderCircle className="spin" size={15} strokeWidth={1.8} aria-hidden="true" />
+            : <Upload size={15} strokeWidth={1.8} aria-hidden="true" />}
+          {isPublishing ? 'Publikuji…' : 'Publikovat'}
         </button>
         <button onClick={onOpenSettings}>
           <Settings size={15} strokeWidth={1.8} aria-hidden="true" />
