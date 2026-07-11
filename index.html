@@ -13,11 +13,6 @@
        /flyer-editor/ prefix got doubled by the dev server, 404ing the script
        in dev (no crossOriginIsolated there). -->
   <script src="/coi-serviceworker.js"></script>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <!-- Fraunces + Crimson Pro render the flyer page; Source Sans 3 is the
-       editor chrome's single UI family. -->
-  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,600;1,9..144,300&family=Crimson+Pro:ital,wght@0,400;0,600;1,400&family=Source+Sans+3:ital,wght@0,400..700;1,400&display=swap" rel="stylesheet">
   <!-- Static layout frame painted before the JS bundle + style.css load, so the
        first paint is the editor's shape (not a black/white screen or spinner).
        It flows seamlessly into the React placeholder, which React mounts in

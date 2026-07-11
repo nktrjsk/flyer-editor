@@ -9,7 +9,7 @@
   --text:         #1c1c1e;
   --muted:        #5c5c5c;
   --border:       #d4d0c8;
-  --font-display: 'Fraunces', Georgia, serif;
+  --font-display: 'Fraunces Variable', Georgia, serif;
   --font-body:    'Crimson Pro', Georgia, serif;
 }
 
@@ -46,7 +46,7 @@
   --ui-success:       oklch(0.76 0.140 150);
 
   /* type */
-  --ui-font: 'Source Sans 3', -apple-system, 'Segoe UI', system-ui, sans-serif;
+  --ui-font: 'Source Sans 3 Variable', -apple-system, 'Segoe UI', system-ui, sans-serif;
   --ui-mono: ui-monospace, 'Cascadia Code', 'SF Mono', Consolas, monospace;
 
   /* z-order: popover < proposal < modal < recovery < toast */
