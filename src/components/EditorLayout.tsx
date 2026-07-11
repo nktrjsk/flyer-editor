@@ -9,6 +9,7 @@ import { useSnapshots } from '../hooks/useSnapshots'
 import { useAiBridge } from '../hooks/useAiBridge'
 import { getAutoAcceptEdits } from '../lib/aiBridge'
 import { captureFlyerPng } from '../lib/flyerScreenshot'
+import { exportFlyerImages } from '../lib/flyerExport'
 import { loadPublishConfig, isConfigured, newPublishId, publishConcept } from '../lib/githubPublish'
 import { slugify } from '../lib/slug'
 import { releaseFingerprint } from '../lib/releaseFingerprint'
@@ -26,6 +27,7 @@ interface EditorLayoutProps {
   onSnapshotReady?: (saveFn: (label: string | null) => void) => void
   onPublishReady?: (publishFn: () => void) => void
   onPublishingChange?: (v: boolean) => void
+  onExportReady?: (exportFn: (format: 'png' | 'jpeg') => void) => void
 }
 
 /**
@@ -93,7 +95,7 @@ function releaseFor(c: {
   return { state: drifted ? 'drifted' : 'clean', title }
 }
 
-export default function EditorLayout({ onSnapshotReady, onPublishReady, onPublishingChange }: EditorLayoutProps) {
+export default function EditorLayout({ onSnapshotReady, onPublishReady, onPublishingChange, onExportReady }: EditorLayoutProps) {
   const concepts = useConcepts()
   const { update } = useEvolu()
   const {
@@ -344,6 +346,10 @@ export default function EditorLayout({ onSnapshotReady, onPublishReady, onPublis
   onPublishReadyRef.current = onPublishReady
   if (onPublishReadyRef.current) onPublishReadyRef.current(handlePublish)
 
+  const onExportReadyRef = useRef(onExportReady)
+  onExportReadyRef.current = onExportReady
+  if (onExportReadyRef.current) onExportReadyRef.current(handleExport)
+
   function handleMetaChange(patch: Partial<ConceptMeta>) {
     setMeta(prev => ({ ...prev, ...patch }))
   }
@@ -547,6 +553,24 @@ export default function EditorLayout({ onSnapshotReady, onPublishReady, onPublis
       })
     } finally {
       onPublishingChange?.(false)
+    }
+  }
+
+  // Download PNG/JPEG images of the current flyer, one file per page. No
+  // publish requirement — uses the concept's own identity (publishId if it
+  // has one, otherwise the row id) purely to seed a stable, readable slug.
+  async function handleExport(format: 'png' | 'jpeg') {
+    if (!activeId) {
+      showToast({ message: 'Nejdřív otevřete nebo vytvořte leták.' })
+      return
+    }
+    const baseName = slugify(effectiveMeta.title, (activeRow?.publishId as string | null) ?? activeId ?? 'letak')
+    showToast({ message: 'Generuji obrázek…' })
+    try {
+      await exportFlyerImages(format, baseName)
+      showToast({ message: 'Staženo ✓' })
+    } catch (e) {
+      showToast({ message: e instanceof Error ? e.message : String(e), durationMs: 8000 })
     }
   }
 

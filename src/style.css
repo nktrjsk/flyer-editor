@@ -349,6 +349,45 @@ body {
   color: var(--ui-text-2);
 }
 
+/* ── Export (PNG/JPEG) toolbar dropdown ───────────────────── */
+.export-menu { position: relative; }
+/* Not a direct child of .toolbar-actions (wrapped, like .ai-connect), so it
+   needs its own icon layout instead of inheriting `.toolbar-actions > button`. */
+.export-menu > button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+}
+.export-menu > button svg { flex: none; opacity: 0.85; }
+.export-menu-popover {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 8px);
+  width: 150px;
+  background: var(--ui-bg-content);
+  border: 1px solid var(--ui-border);
+  border-radius: 8px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+  padding: 6px;
+  z-index: var(--ui-z-popover);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.export-menu-item {
+  background: transparent;
+  border: none;
+  color: var(--ui-text-2);
+  font-family: var(--ui-font);
+  font-size: 0.8125rem;
+  text-align: left;
+  padding: 7px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.export-menu-item:hover { background: var(--ui-surface-hover); color: var(--ui-text); }
+
 /* ─── Layout ──────────────────────────────────── */
 .editor-layout {
   display: grid;

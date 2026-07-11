@@ -19,6 +19,7 @@ export default function App() {
   // the snapshot function through the component tree.
   const saveManualSnapshotRef = useRef<((label: string | null) => void) | null>(null)
   const publishRef = useRef<(() => void) | null>(null)
+  const exportRef = useRef<((format: 'png' | 'jpeg') => void) | null>(null)
 
   function handleSaveSnapshot() {
     setLabelModalOpen(true)
@@ -42,6 +43,7 @@ export default function App() {
             onSaveSnapshot={handleSaveSnapshot}
             onPublish={() => publishRef.current?.()}
             isPublishing={publishing}
+            onExport={format => exportRef.current?.(format)}
           />
           {/* EditorLayout suspends while Evolu/OPFS initialises. Show a populated
               (cached) or skeleton placeholder instead of an empty editor. The
@@ -53,6 +55,7 @@ export default function App() {
                 onSnapshotReady={fn => { saveManualSnapshotRef.current = fn }}
                 onPublishReady={fn => { publishRef.current = fn }}
                 onPublishingChange={setPublishing}
+                onExportReady={fn => { exportRef.current = fn }}
               />
             </Suspense>
           </BootErrorBoundary>

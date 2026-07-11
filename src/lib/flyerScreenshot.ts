@@ -1,13 +1,17 @@
 /**
  * Approximate PNG of the rendered flyer for the AI bridge's get_screenshot.
  *
- * html2canvas is loaded lazily (dynamic import) so it never enters the main
+ * html-to-image is loaded lazily (dynamic import) so it never enters the main
  * bundle — only users who actually trigger an AI screenshot pay for it.
  *
- * APPROXIMATE by nature: html2canvas re-implements CSS, so web fonts, filters
- * and the logo data-URL can render slightly off. Hard facts travel via
- * get_state; this image is a nice-to-have. See docs/ai-bridge.md.
+ * APPROXIMATE by nature: html-to-image renders via the real browser layout
+ * engine (SVG foreignObject), so it's much closer to WYSIWYG than a
+ * CSS-reimplementing renderer — but it can still miss cross-origin resources,
+ * some filters/canvas content, or catch a font mid-swap on slow devices. Hard
+ * facts travel via get_state; this image is a nice-to-have. See docs/ai-bridge.md.
  */
+import { getCachedFontEmbedCSS } from './fontEmbedCss'
+
 const SCALE = 1.5
 const GAP = 16 // px between stacked pages, at SCALE 1
 
@@ -19,12 +23,13 @@ export async function captureFlyerPng(): Promise<{ mimeType: string; base64: str
   // Wait for fonts so text isn't captured mid-swap.
   await document.fonts.ready
 
-  const { default: html2canvas } = await import('html2canvas')
+  const htmlToImage = await import('html-to-image')
+  const fontEmbedCSS = await getCachedFontEmbedCSS(pages[0])
 
   const canvases: HTMLCanvasElement[] = []
   for (const page of pages) {
     canvases.push(
-      await html2canvas(page, { backgroundColor: '#ffffff', scale: SCALE, useCORS: true, logging: false }),
+      await htmlToImage.toCanvas(page, { pixelRatio: SCALE, backgroundColor: '#ffffff', fontEmbedCSS }),
     )
   }
 
