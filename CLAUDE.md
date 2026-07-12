@@ -4,7 +4,7 @@ Browser-based A5 flyer editor. Markdown in → print-ready HTML/PDF out.
 Local-first: edits live in the browser (Evolu/SQLite) and sync across devices via a mnemonic.
 
 **Stack:** React 19 + TypeScript + Vite 6. Evolu for storage + sync. `marked` for
-Markdown → HTML, `html2canvas` for preview screenshots. No server of its own — static
+Markdown → HTML, `html-to-image` for preview screenshots and image export. No server of its own — static
 hosting on GitHub Pages.
 
 ## Dev
