@@ -1,0 +1,24 @@
+# Editor letáku (flyer-editor)
+
+> Browser-based A5 flyer editor: Markdown in, print-ready PDF/HTML/PNG out.
+> Local-first — all flyer data lives in the user's browser (Evolu/SQLite-wasm)
+> and syncs across devices via a mnemonic phrase. No server of its own; this
+> site is a static SPA on GitHub Pages. There is no crawlable user content
+> here: everything an agent can usefully read is in the documentation below.
+
+The app is Czech-first (UI copy in Czech). Source: https://github.com/nktrjsk/flyer-editor
+
+## Documentation
+
+- [README (Czech)](https://raw.githubusercontent.com/nktrjsk/flyer-editor/main/README.md): what the app does, features, dev setup
+- [Code map / architecture](https://raw.githubusercontent.com/nktrjsk/flyer-editor/main/CLAUDE.md): stack, module layout, data model, deployment
+- [Design system](https://raw.githubusercontent.com/nktrjsk/flyer-editor/main/DESIGN.md): "The Dim Print Shop" — UI tokens vs. flyer print tokens
+- [Product intent](https://raw.githubusercontent.com/nktrjsk/flyer-editor/main/PRODUCT.md): users, personality, design principles
+
+## AI integration
+
+- [AI bridge spec](https://raw.githubusercontent.com/nktrjsk/flyer-editor/main/docs/ai-bridge.md): a local-only MCP bridge lets a Claude instance on the same machine read, screenshot, and propose edits to the live editor tab — every proposal is human-approved. It is not a hosted endpoint; there is no public MCP server for this app.
+
+## Optional
+
+- [Markdown mirror of this site's landing info](https://nktrjsk.github.io/flyer-editor/index.md)
