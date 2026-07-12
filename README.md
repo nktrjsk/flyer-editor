@@ -1,52 +1,49 @@
 # Editor letáku
 
-Jednoduchý prohlížečový editor informačních letáků. Markdown na vstupu, A5 PDF na výstupu.
+Prohlížečový editor A5 letáků: Markdown na vstupu, tiskové PDF, HTML nebo PNG na
+výstupu. Local-first — data žijí v prohlížeči (Evolu/SQLite) a synchronizují se mezi
+zařízeními přes mnemonickou frázi. Žádný vlastní server.
+
+**Živá verze:** https://nktrjsk.github.io/flyer-editor/
+
+![Editor letáku](public/social-preview.png)
+
+## Funkce
+
+- Živý A5 náhled s indikací přetečení (co se nevejde, se nevytiskne — a je to vidět)
+- Automatické zálohy s historií a diffem, s možností obnovy
+- Barevná i černobílá varianta letáku
+- Logo na přední straně
+- Export do PNG/JPEG, samostatný HTML soubor, tisk/PDF přes dialog prohlížeče
+- Publikování hotových letáků do git repozitáře
+- Synchronizace mezi zařízeními přes Evolu (mnemonická fráze v Nastavení)
+- Lokální AI bridge pro Claude — návrhy úprav letáku vždy schvaluje člověk, běží
+  jen lokálně (viz [`docs/ai-bridge.md`](docs/ai-bridge.md))
 
 ## Spuštění
 
-Protože editor načítá `style.css` a `editor.js` jako samostatné soubory, potřebuješ
-lokální server (přímé otevření `index.html` souborem nebude fungovat kvůli CORS).
-
 ```bash
-# Python (nejjednodušší)
-python3 -m http.server
-
-# nebo Node.js
-npx serve .
+npm install
+npm run dev       # http://localhost:5173/flyer-editor/
+npm run build     # tsc -b && vite build → dist/
+npm run preview   # produkční build lokálně
 ```
 
-Pak otevři `http://localhost:8000` v prohlížeči.
+## Architektura
 
-## Struktura
+React 19 + TypeScript + Vite 6, žádný backend. Evolu ukládá data do SQLite ve
+WebAssembly přímo v prohlížeči a stará se o synchronizaci; `marked` převádí
+Markdown na HTML, `html-to-image` dělá screenshoty a export náhledu. Evolu
+potřebuje `SharedArrayBuffer`, což vyžaduje COOP/COEP hlavičky — GitHub Pages je
+neumí nastavit, proto je vpravuje `coi-serviceworker` na klientovi. Mapa kódu je
+v [`CLAUDE.md`](CLAUDE.md), vizuální systém v [`DESIGN.md`](DESIGN.md), produktový
+záměr v [`PRODUCT.md`](PRODUCT.md).
 
-```
-index.html   — HTML skeleton a metadata formulář
-style.css    — všechny styly (editor UI + A5 stránka)
-editor.js    — logika renderování, auto-scale titulu, download
-```
+## Nasazení
 
-## Použití
+Push do `main` spustí GitHub Actions (`.github/workflows/deploy.yml`), který
+zbuildí projekt a publikuje `dist/` na GitHub Pages.
 
-- **Název, Organizace, Rok, Web** — vloží se automaticky do záhlaví a zápatí každé stránky
-- **Písmo (pt)** — velikost těla textu (nadpisy se nemění)
-- **Logo** — zobrazí se vpravo nahoře na přední straně
-- **Obsah** — Markdown; `---` na samostatném řádku = nová stránka
-- **Stáhnout HTML** — vygeneruje přenosný standalone soubor (CSS+JS inline) se všemi úpravami
-- **Tisknout / PDF** — otevře tiskový dialog; nastav A5, bez okrajů
+## Licence
 
-## Markdown
-
-| Syntaxe | Výsledek |
-|---|---|
-| `## Nadpis` | sekce |
-| `**tučně**` | tučný text |
-| `*kurzíva*` | kurzíva |
-| `~~přeškrtnutí~~` | přeškrtnutý text |
-| `> text` | zvýrazněný rámeček (callout) |
-| `- položka` | odrážkový seznam |
-| `1. položka` | číslovaný seznam |
-| `---` | nová stránka |
-
-## Licence obsahu
-
-Výstupy jsou šířeny pod CC BY-SA 4.0.
+MIT.
