@@ -167,14 +167,17 @@ const TOOLS = [
   {
     name: 'propose_changes',
     description:
-      'Navrhne úpravu aktivního letáku. Standardně NEZAPISUJE — uživatel ji potvrdí v editoru ' +
-      '(vrátí "staged"). Má-li uživatel zapnutý režim automatického přijímání, úprava se použije ' +
-      'rovnou (vrátí "auto-accepted") a await_decision není potřeba. ' +
+      'Navrhne úpravu letáku. BEZ id míří na AKTIVNÍ leták: standardně NEZAPISUJE — uživatel ji ' +
+      'potvrdí v editoru (vrátí "staged"); se zapnutým režimem automatického přijímání se úprava ' +
+      'použije rovnou (vrátí "auto-accepted") a await_decision není potřeba. ' +
+      'S id upraví JINÝ leták (koncept) přímo na pozadí BEZ přepnutí aktivního letáku (nekrade fokus) — ' +
+      'to ale vyžaduje zapnutý režim automatického přijímání (jinak vrátí chybu). ' +
       'Předchozí nepotvrzený návrh je nahrazen. Vrať jen pole, která chceš změnit. ' +
       'org/web/rok jsou automatické (Nastavení + datum úpravy) a navrhnout je nelze.',
     inputSchema: {
       type: 'object',
       properties: {
+        id: { type: 'string', description: 'Nepovinné. id konceptu z list_concepts — upraví tento leták na pozadí bez přepnutí. Vyžaduje zapnuté automatické přijímání.' },
         markdown: { type: 'string', description: 'Celý nový markdown těla letáku.' },
         title: { type: 'string' },
         fontSize: { type: 'number', description: 'Velikost písma v pt (např. 9.5).' },

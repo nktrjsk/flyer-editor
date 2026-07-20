@@ -72,7 +72,7 @@ this app. The bridge therefore enforces, on every connection:
 |------|--------|
 | `get_state(id?)` | Returns `{ meta, markdown, pages, overflow, overflowingPages, titleFitPt, palette, hasLogo }`. Without `id`, reads the **unsaved** in-editor state of the active flyer — exactly what you see. With `id` (from `list_concepts`), reads the **saved** state of a *different* flyer instead: it renders that concept's markdown into a hidden, off-screen preview and runs the same fit/overflow measurement the live pane uses, then tears it down — the active flyer and its focus are never touched. Logo presence isn't measured for the off-screen case (`hasLogo` reflects only whether a logo is set on the row). |
 | `get_screenshot()` | Best-effort PNG of `.page` via html2canvas (after `document.fonts.ready`). Approximate — see *Vision caveat*. |
-| `propose_changes({ markdown?, title?, palette?, fontSize? })` | Stages an **edit proposal**. Returns `"staged"` (or `"auto-accepted"` if trust mode is on — see below). org/web/year can't be proposed — they're auto-derived (identity in Nastavení + last-edit date). |
+| `propose_changes({ id?, markdown?, title?, palette?, fontSize? })` | Without `id`: stages an **edit proposal** for the active flyer. Returns `"staged"` (or `"auto-accepted"` if trust mode is on — see below). With `id` (from `list_concepts`), targets a *different* flyer instead: it writes straight to that concept's row **silently in the background** — no snapshot (the active flyer is untouched), no focus steal, no review pane — but this requires trust mode on; without it, the call is rejected with an error explaining why. org/web/year can't be proposed — they're auto-derived (identity in Nastavení + last-edit date). |
 | `create_concept({ markdown?, title?, palette?, fontSize? })` | Stages a **create proposal** for a brand-new flyer. Returns `"staged"` by default — on Accept the new flyer is created (or `"auto-accepted"` with trust mode on, created immediately). Either way it's created **silently in the background**: it never switches the active flyer, so `get_state` keeps returning the flyer you had open. |
 | `switch_concept(id)` | Stages a **switch proposal** ("Claude chce otevřít …"). Returns `"staged"`. |
 | `await_decision()` | **Blocks** until you Accept/Reject in the review pane, then returns `{ accepted, reason? }`. Caps at ~45 s → `{ status: "pending" }` (call again). The cap sits under the MCP client's ~60 s per-request timeout. This is how Claude is "notified" you finished reviewing. |
@@ -139,6 +139,12 @@ to cut clicking when iterating fast with Claude. It is:
   `setMeta`/`setMarkdown`); each auto-applied create adds the new row and shows
   an Undo that drops it (there's no active-side snapshot to restore — the
   active concept was never touched).
+- **Also gates background edit-by-id** — `propose_changes({ id, … })` targeting
+  a *non-active* concept only works while trust mode is on (there's no review
+  pane for a flyer you're not looking at, so without it the call errors
+  instead of silently writing). The write goes straight to that concept's row
+  — no snapshot, since the active concept is untouched — and the toast's Undo
+  restores the row's previous fields.
 
 With trust mode on, `propose_changes`/`create_concept` return `"auto-accepted"`
 instead of `"staged"` and apply immediately; `await_decision` is unnecessary

@@ -303,6 +303,21 @@ export default function EditorLayout({ onSnapshotReady, onPublishReady, onPublis
           'Nebyla zadána žádná změna. (org/web se nastavují v Nastavení a rok je automatický — navrhnout lze markdown, title, fontSize a palette.)',
         )
       }
+      // Background edit of ANOTHER flyer by id — silent under auto-accept,
+      // never touches the active concept or its focus. Mirrors silent
+      // create_concept. Without auto-accept there is no place to review a
+      // non-active edit, so it's refused with a clear hint.
+      const targetId = args.id != null ? String(args.id) : ''
+      if (targetId && targetId !== activeId) {
+        const row = concepts.find(c => c.id === targetId)
+        if (!row) throw new Error('Koncept s tímto id neexistuje. Použij list_concepts.')
+        if (!getAutoAcceptEdits()) {
+          throw new Error('Úprava letáku na pozadí (podle id) vyžaduje zapnutý režim automatického přijímání. Bez něj lze upravit jen aktivní leták.')
+        }
+        applyEditByIdTarget(targetId as ConceptId, row, args)
+        settleDecision({ accepted: true }, false)
+        return 'auto-accepted'
+      }
       const nextMeta: ConceptMeta = { ...effectiveMeta }
       if ('title' in args) nextMeta.title = String(args.title ?? '')
       if ('fontSize' in args) {
@@ -467,6 +482,36 @@ export default function EditorLayout({ onSnapshotReady, onPublishReady, onPublis
       },
     })
     return newId
+  }
+
+  // Apply an edit to a NON-active concept, straight to its row by id. No focus
+  // change and no snapshot (the active concept is untouched; mirrors silent
+  // create). The toast offers Undo by restoring the row's previous editable
+  // fields. Only fields present in `args` are written.
+  function applyEditByIdTarget(
+    id: ConceptId,
+    row: { title: string | null; fontSize: number | null; palette: string | null; markdown: string | null },
+    args: Record<string, unknown>,
+  ) {
+    const prev = {
+      title: row.title ?? '',
+      fontSize: row.fontSize ?? 9.5,
+      palette: (row.palette === 'bw' ? 'bw' : 'color') as Palette,
+      markdown: row.markdown ?? '',
+    }
+    const patch: Record<string, unknown> = {}
+    if ('title' in args) patch.title = String(args.title ?? '')
+    if ('fontSize' in args) { const n = Number(args.fontSize); if (!Number.isNaN(n)) patch.fontSize = n }
+    if ('palette' in args) patch.palette = args.palette === 'bw' ? 'bw' : 'color'
+    if ('markdown' in args) patch.markdown = String(args.markdown ?? '')
+    update('concept', { id, ...patch })
+    showToast({
+      message: 'Leták upraven na pozadí.',
+      action: {
+        label: 'Zpět',
+        onClick: () => update('concept', { id, ...prev }),
+      },
+    })
   }
 
   // Accept an AI proposal — the SAME single-writer path as handleRestore, so it
