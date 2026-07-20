@@ -70,18 +70,21 @@ this app. The bridge therefore enforces, on every connection:
 
 | Tool | Effect |
 |------|--------|
-| `get_state()` | Returns live editor state: `{ meta, markdown, pages, overflow, overflowingPages, titleFitPt, palette, hasLogo }`. Reads the **unsaved** in-editor state — exactly what you see. |
+| `get_state(id?)` | Returns `{ meta, markdown, pages, overflow, overflowingPages, titleFitPt, palette, hasLogo }`. Without `id`, reads the **unsaved** in-editor state of the active flyer — exactly what you see. With `id` (from `list_concepts`), reads the **saved** state of a *different* flyer instead: it renders that concept's markdown into a hidden, off-screen preview and runs the same fit/overflow measurement the live pane uses, then tears it down — the active flyer and its focus are never touched. Logo presence isn't measured for the off-screen case (`hasLogo` reflects only whether a logo is set on the row). |
 | `get_screenshot()` | Best-effort PNG of `.page` via html2canvas (after `document.fonts.ready`). Approximate — see *Vision caveat*. |
 | `propose_changes({ markdown?, title?, palette?, fontSize? })` | Stages an **edit proposal**. Returns `"staged"` (or `"auto-accepted"` if trust mode is on — see below). org/web/year can't be proposed — they're auto-derived (identity in Nastavení + last-edit date). |
-| `create_concept({ markdown?, title?, palette?, fontSize? })` | Stages a **create proposal** for a brand-new flyer; on Accept it's created and opened. Returns `"staged"`. Never writes. |
+| `create_concept({ markdown?, title?, palette?, fontSize? })` | Stages a **create proposal** for a brand-new flyer. Returns `"staged"` by default — on Accept the new flyer is created (or `"auto-accepted"` with trust mode on, created immediately). Either way it's created **silently in the background**: it never switches the active flyer, so `get_state` keeps returning the flyer you had open. |
 | `switch_concept(id)` | Stages a **switch proposal** ("Claude chce otevřít …"). Returns `"staged"`. |
 | `await_decision()` | **Blocks** until you Accept/Reject in the review pane, then returns `{ accepted, reason? }`. Caps at ~45 s → `{ status: "pending" }` (call again). The cap sits under the MCP client's ~60 s per-request timeout. This is how Claude is "notified" you finished reviewing. |
 | `list_concepts()` | `[{ id, title }]`. |
 
 `create_concept` is a **gated proposal** like every other AI action — staged,
-diffed, and applied only on your Accept (Undo drops the new concept). `delete`
-stays intentionally **human-only** (hard to undo); it could become a gated
-proposal later.
+diffed, and applied only on your Accept (Undo drops the new concept). Unlike
+`edit` and `switch`, applying a create never touches or switches the active
+concept — the new flyer is just added to the list, so there's nothing to
+snapshot on the active side and no focus steal. `delete` isn't exposed to the
+AI bridge at all — it stays intentionally **human-only**, sidebar-only (hard to
+undo); it could become a gated proposal later.
 
 ## Apply model — always human-gated
 
@@ -105,34 +108,42 @@ A `<ProposalReview>` pane appears when a proposal exists:
 **Accept** = `saveManualSnapshot('Před úpravou od AI')` → the existing
 `setMeta`/`setMarkdown` (edit) or `selectConcept` (switch) — *the same single
 writer path your own edits use* (mirrors `handleRestore` in
-`EditorLayout.tsx`). Then resolves `await_decision` with `{accepted:true}` and
-shows the standard toast-with-Undo. **Reject** discards and resolves
+`EditorLayout.tsx`). **create** is the one exception: nothing on the active
+concept changes, so there's nothing to snapshot — it just inserts the new row
+via `createConcept(…, { select: false })`, leaving the active concept and its
+focus alone. Every kind then resolves `await_decision` with `{accepted:true}`
+and shows the standard toast-with-Undo. **Reject** discards and resolves
 `{accepted:false, reason}`.
 
 Net effect: the AI path is indistinguishable from a restore — one writer, full
 snapshot/undo, zero corruption risk.
 
-### Trust mode — opt-in auto-accept for edits
+### Trust mode — opt-in auto-accept for edits and creates
 
-A checkbox in the **AiConnect** popover ("⚡ Automaticky přijímat úpravy") lets you
-drop the manual gate **for `edit` proposals only**, to cut clicking when
-iterating fast with Claude. It is:
+A checkbox in the **AiConnect** popover ("⚡ Automaticky přijímat úpravy a nové
+letáky") lets you drop the manual gate **for `edit` and `create` proposals**,
+to cut clicking when iterating fast with Claude. It is:
 
 - **Off by default** and **in-memory only** — never persisted, so it can't
   survive a reload.
-- **Scoped to `edit`** — `switch`, `create`, and `delete` proposals still
-  require a manual Accept (higher blast radius).
+- **Scoped to `edit` and `create`** — `switch` and `delete` proposals still
+  require a manual Accept (higher blast radius). An auto-accepted create is
+  applied **silently, without changing the active concept** — no focus steal,
+  same as a manually-accepted one (see the table above).
 - **Conspicuous while on** — the toolbar button turns amber and reads
   `🟢 AI připojeno · ⚡ auto`.
 - **Auto-revoked on disconnect** — dropping the bridge resets it to off, so the
   gate is never left down without a live session.
-- **Still snapshot-backed** — each auto-applied edit goes through the exact same
+- **Still snapshot/undo-backed** — each auto-applied edit goes through the same
   single-writer path (`saveManualSnapshot('Před úpravou od AI (auto)')` →
-  `setMeta`/`setMarkdown`), so every change remains fully undoable.
+  `setMeta`/`setMarkdown`); each auto-applied create adds the new row and shows
+  an Undo that drops it (there's no active-side snapshot to restore — the
+  active concept was never touched).
 
-With trust mode on, `propose_changes` returns `"auto-accepted"` instead of
-`"staged"` and applies immediately; `await_decision` is unnecessary (it resolves
-a call that's already blocked, but nothing is buffered for a later one).
+With trust mode on, `propose_changes`/`create_concept` return `"auto-accepted"`
+instead of `"staged"` and apply immediately; `await_decision` is unnecessary
+(it resolves a call that's already blocked, but nothing is buffered for a
+later one).
 
 ### Vision caveat
 `get_state` always carries the **hard facts as data** (overflow, page count,

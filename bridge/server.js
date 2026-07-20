@@ -139,9 +139,18 @@ const TOOLS = [
   {
     name: 'get_state',
     description:
-      'Vrátí aktuální (i neuložený) stav editoru: meta, markdown, počet stránek, ' +
-      'přetečení, barevnost, zda má logo. Toto je zdroj pravdy — obrázek z get_screenshot je jen přibližný.',
-    inputSchema: { type: 'object', properties: {}, additionalProperties: false },
+      'Vrátí stav letáku: meta, markdown, počet stránek, přetečení, barevnost, zda má logo. ' +
+      'Toto je zdroj pravdy — obrázek z get_screenshot je jen přibližný. ' +
+      'Bez id vrací aktuální (i neuložený) stav aktivního letáku. ' +
+      'S id vykreslí a změří ULOŽENÝ stav jiného letáku SKRYTĚ (přetečení, počet stránek, fit ' +
+      'titulku) BEZ přepnutí aktivního letáku (nekrade fokus). Logo se do měření nezapočítává.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        id: { type: 'string', description: 'Nepovinné. id konceptu z list_concepts — změří tento leták mimo fokus.' },
+      },
+      additionalProperties: false,
+    },
   },
   {
     name: 'list_concepts',
@@ -178,7 +187,11 @@ const TOOLS = [
     name: 'create_concept',
     description:
       'Navrhne vytvoření NOVÉHO letáku (konceptu) s volitelným obsahem a metadaty. ' +
-      'NEVYTVÁŘÍ přímo — uživatel potvrdí v editoru; po potvrzení se nový leták rovnou otevře. ' +
+      'Standardně NEVYTVÁŘÍ přímo — uživatel potvrdí v editoru (vrátí "staged"). ' +
+      'Má-li uživatel zapnutý režim automatického přijímání, leták se vytvoří rovnou na pozadí ' +
+      '(vrátí "auto-accepted") a await_decision není potřeba. ' +
+      'Vytvoření NIKDY nepřepne aktivní leták (nekrade fokus); nový leták se jen přidá do seznamu, ' +
+      'takže get_state dál vrací původně otevřený leták, ne ten nový. ' +
       'Vrať jen pole, která chceš nastavit; nezadaná zůstanou prázdná (písmo 9.5, barevně). ' +
       'org/web/rok jsou automatické (Nastavení + datum úpravy).',
     inputSchema: {

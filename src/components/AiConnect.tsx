@@ -78,10 +78,11 @@ export default function AiConnect() {
                 onChange={e => setAutoAcceptEdits(e.target.checked)}
               />
               <span className="ai-connect-auto-text">
-                <strong>Automaticky přijímat úpravy</strong>
+                <strong>Automaticky přijímat úpravy a nové letáky</strong>
                 <small>
-                  Úpravy aktivního letáku se použijí bez potvrzení (jde vrátit zpět).
-                  Nové letáky, přepnutí a mazání se stále potvrzují ručně. Vypne se při odpojení.
+                  Úpravy aktivního letáku se použijí bez potvrzení a nové letáky vznikají na pozadí,
+                  bez přepnutí (obojí jde vrátit zpět). Přepnutí a mazání se stále potvrzují ručně.
+                  Vypne se při odpojení.
                 </small>
               </span>
             </label>

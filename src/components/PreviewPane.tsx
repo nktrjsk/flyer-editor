@@ -10,7 +10,7 @@ interface PreviewPaneProps {
   onTitleChange?: (title: string) => void
 }
 
-function fitTitles(pane: HTMLElement) {
+export function fitTitles(pane: HTMLElement) {
   pane.querySelectorAll<HTMLElement>('.page-title').forEach(el => {
     const max = 34, min = 20
 
@@ -39,7 +39,7 @@ function fitTitles(pane: HTMLElement) {
 // Flag pages whose content is clipped by the fixed A5 height. The content
 // area has overflow:hidden, so scrollHeight (full content) exceeding
 // clientHeight (visible box) means text is being cut off the page.
-function markOverflow(pane: HTMLElement) {
+export function markOverflow(pane: HTMLElement) {
   let anyOverflow = false
   pane.querySelectorAll<HTMLElement>('.page').forEach(page => {
     const content = page.querySelector<HTMLElement>('.page-content')

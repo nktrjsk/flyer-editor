@@ -13,6 +13,7 @@ import { exportFlyerImages } from '../lib/flyerExport'
 import { loadPublishConfig, isConfigured, newPublishId, publishConcept } from '../lib/githubPublish'
 import { slugify } from '../lib/slug'
 import { releaseFingerprint } from '../lib/releaseFingerprint'
+import { measurePreviewFacts } from '../lib/measurePreview'
 import { useEvolu } from '../db/schema'
 import { useToast } from './ToastProvider'
 import { useConfirm } from './ConfirmProvider'
@@ -233,24 +234,62 @@ export default function EditorLayout({ onSnapshotReady, onPublishReady, onPublis
   }
 
   useAiBridge({
-    get_state: () => {
-      const facts = readPreviewFacts()
+    // No `id` → exactly the live, unsaved state of the active concept (as
+    // before). With an `id` → the SAVED state of another concept, rendered
+    // off-screen and measured with the same fit/overflow logic — the active
+    // concept and its focus are never touched.
+    get_state: async (args: Record<string, unknown> = {}) => {
+      const id = args.id != null ? String(args.id) : ''
+      if (!id) {
+        const facts = readPreviewFacts()
+        return {
+          meta: {
+            title: effectiveMeta.title,
+            org: effectiveMeta.org,
+            year: effectiveMeta.year,
+            web: effectiveMeta.web,
+            fontSize: effectiveMeta.fontSize,
+            palette: effectiveMeta.palette,
+          },
+          markdown,
+          pages: facts.pages,
+          overflow: facts.overflow,
+          overflowingPages: facts.overflowingPages,
+          titleFitPt: facts.titleFitPt,
+          palette: meta.palette,
+          hasLogo: !!meta.logo,
+        }
+      }
+      const row = concepts.find(c => c.id === id)
+      if (!row) throw new Error('Koncept s tímto id neexistuje. Použij list_concepts.')
+      const m: ConceptMeta = {
+        title: row.title ?? '',
+        org: identity.org ?? '',
+        web: identity.web ?? '',
+        year: String((row.createdAt ? new Date(String(row.createdAt)) : new Date()).getFullYear()),
+        fontSize: row.fontSize ?? 9.5,
+        logo: '',
+        logoId: row.logoId ?? null,
+        palette: row.palette === 'bw' ? 'bw' : 'color',
+      }
+      const md = row.markdown ?? ''
+      const facts = await measurePreviewFacts(m, md)
       return {
         meta: {
-          title: effectiveMeta.title,
-          org: effectiveMeta.org,
-          year: effectiveMeta.year,
-          web: effectiveMeta.web,
-          fontSize: effectiveMeta.fontSize,
-          palette: effectiveMeta.palette,
+          title: m.title,
+          org: m.org,
+          year: m.year,
+          web: m.web,
+          fontSize: m.fontSize,
+          palette: m.palette,
         },
-        markdown,
+        markdown: md,
         pages: facts.pages,
         overflow: facts.overflow,
         overflowingPages: facts.overflowingPages,
         titleFitPt: facts.titleFitPt,
-        palette: meta.palette,
-        hasLogo: !!meta.logo,
+        palette: m.palette,
+        hasLogo: !!row.logoId,
       }
     },
     list_concepts: () => conceptList,
@@ -299,6 +338,13 @@ export default function EditorLayout({ onSnapshotReady, onPublishReady, onPublis
       }
       if ('palette' in args) nextMeta.palette = args.palette === 'bw' ? 'bw' : 'color'
       const nextMarkdown = 'markdown' in args ? String(args.markdown ?? '') : ''
+      // Trust mode: create silently in the background — no snapshot needed (the
+      // active concept is untouched) and no focus steal (never selected).
+      if (getAutoAcceptEdits()) {
+        applyCreateTarget(nextMeta, nextMarkdown, true)
+        settleDecision({ accepted: true }, false)
+        return 'auto-accepted'
+      }
       setPendingProposal({ kind: 'create', target: { meta: nextMeta, markdown: nextMarkdown } })
       return 'staged'
     },
@@ -398,6 +444,31 @@ export default function EditorLayout({ onSnapshotReady, onPublishReady, onPublis
     })
   }
 
+  // Create a new concept from an AI target WITHOUT touching the active concept
+  // or switching focus — shared by manual Accept and trust-mode auto-accept.
+  // Unlike applyEditTarget there's nothing to snapshot: the active concept is
+  // untouched by a create, only a new row is added.
+  function applyCreateTarget(targetMeta: ConceptMeta, targetMarkdown: string, auto: boolean): ConceptId | null {
+    const newId = createConcept({
+      title:    targetMeta.title,
+      org:      targetMeta.org,
+      year:     targetMeta.year,
+      web:      targetMeta.web,
+      fontSize: targetMeta.fontSize,
+      palette:  targetMeta.palette,
+      markdown: targetMarkdown,
+    }, { select: false })
+    showToast({
+      message: auto ? 'Nový leták vytvořen na pozadí.' : 'Nový leták vytvořen.',
+      // Undo = drop the new concept. We never switched, so nothing to select back.
+      action: {
+        label: 'Zpět',
+        onClick: () => { if (newId) deleteConcept(newId) },
+      },
+    })
+    return newId
+  }
+
   // Accept an AI proposal — the SAME single-writer path as handleRestore, so it
   // snapshots first and is fully undoable.
   function acceptProposal() {
@@ -419,32 +490,11 @@ export default function EditorLayout({ onSnapshotReady, onPublishReady, onPublis
         ...(prevId ? { action: { label: 'Zpět', onClick: () => selectConcept(prevId) } } : {}),
       })
     } else if (p.kind === 'create') {
-      // Snapshot the outgoing concept first (mirrors handleSelect), then create
-      // the new one populated with the proposed content and switch to it.
-      const prevId = activeId
-      saveAutoSnapshot()
-      const newId = createConcept({
-        title:    p.target.meta.title,
-        org:      p.target.meta.org,
-        year:     p.target.meta.year,
-        web:      p.target.meta.web,
-        fontSize: p.target.meta.fontSize,
-        palette:  p.target.meta.palette,
-        markdown: p.target.markdown,
-      })
+      // Create the new concept populated with the proposed content — never
+      // switches focus (toast + undo come from applyCreateTarget).
+      applyCreateTarget(p.target.meta, p.target.markdown, false)
       setPendingProposal(null)
       settleDecision({ accepted: true })
-      showToast({
-        message: 'Nový leták vytvořen.',
-        // Undo = drop the new concept and go back to where we were.
-        action: {
-          label: 'Zpět',
-          onClick: () => {
-            if (prevId) selectConcept(prevId)
-            if (newId) deleteConcept(newId)
-          },
-        },
-      })
     }
   }
 

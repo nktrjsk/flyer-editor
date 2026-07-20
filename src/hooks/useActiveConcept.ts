@@ -76,22 +76,28 @@ export function useActiveConcept(
   }
 
   /**
-   * Create a new concept and make it active. Optionally seed it with initial
-   * content/metadata — used by the AI bridge's gated `create_concept` proposal
-   * so Claude can spin up a fully-populated flyer in one accepted step. Returns
-   * the new concept's id (or null if the insert failed).
+   * Create a new concept. Optionally seed it with initial content/metadata —
+   * used by the AI bridge's `create_concept` proposal so Claude can spin up a
+   * fully-populated flyer in one step. Selects it active by default (the "New"
+   * button flow); pass `{ select: false }` to leave the currently active
+   * concept untouched — the AI bridge's silent-create path, so a background
+   * flyer never steals focus. Returns the new concept's id (or null if the
+   * insert failed).
    */
-  function createConcept(init?: {
-    title?: string
-    org?: string
-    year?: string
-    web?: string
-    fontSize?: number
-    palette?: Palette
-    markdown?: string
-    logo?: string | null
-    logoId?: ConceptLogoId | null
-  }): ConceptId | null {
+  function createConcept(
+    init?: {
+      title?: string
+      org?: string
+      year?: string
+      web?: string
+      fontSize?: number
+      palette?: Palette
+      markdown?: string
+      logo?: string | null
+      logoId?: ConceptLogoId | null
+    },
+    opts?: { select?: boolean },
+  ): ConceptId | null {
     const result = insert('concept', {
       title:    init?.title    ?? '',
       org:      init?.org      ?? '',
@@ -106,7 +112,7 @@ export function useActiveConcept(
     })
     if (result.ok) {
       const id = result.value.id as ConceptId
-      setActiveId(id)
+      if (opts?.select !== false) setActiveId(id)
       window.dispatchEvent(new StorageEvent('storage'))
       return id
     }
