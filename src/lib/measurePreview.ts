@@ -23,8 +23,16 @@ export async function measurePreviewFacts(meta: ConceptMeta, markdown: string): 
   try {
     root.render(createElement(PreviewPane, { meta, markdown }))
     await document.fonts.ready
-    // two rAFs so the commit + layout settle before we measure
-    await new Promise<void>(res => requestAnimationFrame(() => requestAnimationFrame(() => res())))
+    // Wait for React to commit the render, then a beat for layout to settle.
+    // We use setTimeout, NOT requestAnimationFrame: rAF is paused in a
+    // backgrounded tab, which would hang measurement whenever the editor tab
+    // isn't focused (the whole point of an off-screen read). setTimeout still
+    // fires in the background, and reading scrollHeight below forces a
+    // synchronous layout, so we don't need an animation frame at all.
+    for (let i = 0; i < 50 && host.querySelectorAll('.page').length === 0; i++) {
+      await new Promise<void>(res => setTimeout(res, 16))
+    }
+    await new Promise<void>(res => setTimeout(res, 0))
     fitTitles(host)
     markOverflow(host)
     const pageEls = Array.from(host.querySelectorAll<HTMLElement>('.page'))
