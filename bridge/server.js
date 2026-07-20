@@ -172,6 +172,9 @@ const TOOLS = [
       'použije rovnou (vrátí "auto-accepted") a await_decision není potřeba. ' +
       'S id upraví JINÝ leták (koncept) přímo na pozadí BEZ přepnutí aktivního letáku (nekrade fokus) — ' +
       'to ale vyžaduje zapnutý režim automatického přijímání (jinak vrátí chybu). ' +
+      'Pro drobné úpravy použij částečnou editaci: find + replaceWith nahradí PRÁVĚ JEDEN výskyt ' +
+      'řetězce find (musí být v markdownu jednoznačný — 0 nebo víc výskytů vrátí chybu), append přidá ' +
+      'text na konec. Nepoužívej je zároveň s celým markdown. ' +
       'Předchozí nepotvrzený návrh je nahrazen. Vrať jen pole, která chceš změnit. ' +
       'org/web/rok jsou automatické (Nastavení + datum úpravy) a navrhnout je nelze.',
     inputSchema: {
@@ -179,6 +182,9 @@ const TOOLS = [
       properties: {
         id: { type: 'string', description: 'Nepovinné. id konceptu z list_concepts — upraví tento leták na pozadí bez přepnutí. Vyžaduje zapnuté automatické přijímání.' },
         markdown: { type: 'string', description: 'Celý nový markdown těla letáku.' },
+        find: { type: 'string', description: 'Částečná editace: řetězec, který se má v markdownu najít (musí být jednoznačný — právě jeden výskyt). Použij s replaceWith.' },
+        replaceWith: { type: 'string', description: 'Čím nahradit nalezený find (prázdné = smazat). Vyžaduje find.' },
+        append: { type: 'string', description: 'Text přidaný na konec markdownu (odděleno prázdným řádkem).' },
         title: { type: 'string' },
         fontSize: { type: 'number', description: 'Velikost písma v pt (např. 9.5).' },
         palette: { type: 'string', enum: ['color', 'bw'], description: 'Barevně nebo černobíle.' },

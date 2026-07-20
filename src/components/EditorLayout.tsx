@@ -294,30 +294,65 @@ export default function EditorLayout({ onSnapshotReady, onPublishReady, onPublis
     },
     list_concepts: () => conceptList,
     get_screenshot: () => captureFlyerPng(),
-    propose_changes: (args: Record<string, unknown>) => {
+    propose_changes: (argsIn: Record<string, unknown>) => {
+      let args = argsIn
+      const targetId = args.id != null ? String(args.id) : ''
+      const isBackground = !!targetId && targetId !== activeId
+
+      // Resolve the base markdown the partial-edit ops act on: the id'd row's
+      // saved markdown for a background edit, otherwise the live active markdown.
+      let bgRow: (typeof concepts)[number] | undefined
+      if (isBackground) {
+        bgRow = concepts.find(c => c.id === targetId)
+        if (!bgRow) throw new Error('Koncept s tímto id neexistuje. Použij list_concepts.')
+      }
+      const baseMarkdown = isBackground ? (bgRow!.markdown ?? '') : markdown
+
+      // Partial edit: find/replaceWith and/or append compute a new full markdown
+      // from the base, so we don't have to resend the whole body. Result is
+      // written back into `args.markdown` so every path below treats it as a
+      // normal markdown edit.
+      if ('find' in args || 'append' in args) {
+        if ('markdown' in args) {
+          throw new Error('Zadej buď markdown (celé), nebo find/append (částečná úprava), ne obojí.')
+        }
+        let next = baseMarkdown
+        if ('find' in args) {
+          const find = String(args.find ?? '')
+          if (!find) throw new Error('find nesmí být prázdný.')
+          const count = next.split(find).length - 1
+          if (count === 0) throw new Error('Řetězec z find nebyl v markdownu nalezen.')
+          if (count > 1) throw new Error(`find má více výskytů (${count}) — upřesni delším kontextem, ať je jednoznačný.`)
+          next = next.replace(find, String(args.replaceWith ?? ''))
+        }
+        if ('append' in args) {
+          next = next.trimEnd() + '\n\n' + String(args.append ?? '')
+        }
+        args = { ...args, markdown: next }
+      }
+
       // org/year/web are auto-derived now (identity setting + last-edit date);
       // proposals for them are ignored so an accepted edit can't clobber them.
       const known = ['markdown', 'title', 'fontSize', 'palette']
       if (!known.some(k => k in args)) {
         throw new Error(
-          'Nebyla zadána žádná změna. (org/web se nastavují v Nastavení a rok je automatický — navrhnout lze markdown, title, fontSize a palette.)',
+          'Nebyla zadána žádná změna. (org/web se nastavují v Nastavení a rok je automatický — navrhnout lze markdown, title, fontSize, palette, nebo částečně find/replaceWith/append.)',
         )
       }
+
       // Background edit of ANOTHER flyer by id — silent under auto-accept,
       // never touches the active concept or its focus. Mirrors silent
       // create_concept. Without auto-accept there is no place to review a
       // non-active edit, so it's refused with a clear hint.
-      const targetId = args.id != null ? String(args.id) : ''
-      if (targetId && targetId !== activeId) {
-        const row = concepts.find(c => c.id === targetId)
-        if (!row) throw new Error('Koncept s tímto id neexistuje. Použij list_concepts.')
+      if (isBackground) {
         if (!getAutoAcceptEdits()) {
           throw new Error('Úprava letáku na pozadí (podle id) vyžaduje zapnutý režim automatického přijímání. Bez něj lze upravit jen aktivní leták.')
         }
-        applyEditByIdTarget(targetId as ConceptId, row, args)
+        applyEditByIdTarget(targetId as ConceptId, bgRow!, args)
         settleDecision({ accepted: true }, false)
         return 'auto-accepted'
       }
+
       const nextMeta: ConceptMeta = { ...effectiveMeta }
       if ('title' in args) nextMeta.title = String(args.title ?? '')
       if ('fontSize' in args) {
